@@ -1,0 +1,795 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        /* === 強制覆蓋按鈕樣式 === */
+        .ghost-btn {
+            background-color: transparent !important;
+            border: 1.5px solid white !important;
+            color: white !important;
+            padding: 5px 12px !important;
+            border-radius: 4px !important;
+            cursor: pointer !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            font-size: 14px !important;
+            transition: background 0.2s !important;
+            margin-right: 0 !important;
+        }
+        .ghost-btn:hover { background-color: rgba(255, 255, 255, 0.2) !important; }
+
+        /* 基本佈局 */
+        body { display: flex; flex-direction: column; min-height: 100vh; margin: 0; background-color: #f4f4f4; }
+        .layout-wrapper { display: flex; justify-content: center; align-items: flex-start; gap: 20px; width: 100%; max-width: 1300px; margin: 0 auto; padding-top: 80px; flex: 1; }
+        .ad-sidebar { width: 160px; flex-shrink: 0; position: sticky; top: 70px; z-index: 10; }
+        .content { width: 100%; max-width: 900px; padding: 20px; }
+        @media (max-width: 1260px) { .ad-sidebar { display: none; } .content { margin: 0 auto !important; } }
+        .site-footer { background-color: #568fc9; color: white; text-align: center; padding: 25px 0; margin-top: auto; }
+
+        /* === 遊戲 CSS === */
+        .screen { display: none; }
+        .active { display: block; }
+        .game-card { 
+            background: white; padding: 40px; border-radius: 15px; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); margin: 0 auto; 
+            max-width: 500px; text-align: center; position: relative;
+        }
+        .game-input, .game-select { 
+            padding: 12px; font-size: 16px; width: 80%; margin-bottom: 15px; 
+            border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; 
+        }
+        .game-btn { 
+            background: #333; color: white; padding: 12px 24px; border: none; 
+            border-radius: 8px; font-size: 16px; cursor: pointer; margin: 5px; 
+            transition: 0.2s; width: 80%; 
+        }
+        .game-btn:hover { background: #555; transform: translateY(-2px); }
+        .btn-vote { width: 100%; margin-top: 10px; background: #007bff; }
+        .btn-vote.voted { background: #6c757d; cursor: not-allowed; opacity: 0.6; }
+
+        .player-badge { 
+            background: #e9ecef; padding: 10px; margin: 8px 0; border-radius: 8px; 
+            font-weight: bold; text-align: left; display: flex; justify-content: space-between; align-items: center;
+        }
+        .player-badge.me { background: #d1e7dd; border: 1px solid #badbcc; }
+        
+        .role-truth { color: #28a745; font-weight: bold; font-size: 1.4em; }
+        .role-liar { color: #dc3545; font-weight: bold; font-size: 1.4em; }
+        .waiting-msg { color: #e67e22; font-weight: bold; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* 分數與回合顯示 */
+        .round-badge {
+            position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
+            background: #333; color: #fff; padding: 5px 15px; border-radius: 20px;
+            font-size: 14px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .score-tag { background: #ffc107; color: #333; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 5px; }
+        .score-plus { color: #28a745; font-weight: bold; margin-left: 5px; animation: floatUp 1s ease-out; }
+        .score-detail { font-size: 12px; color: #666; display: block; margin-top: 2px; }
+        @keyframes floatUp { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-10px); opacity: 0; } }
+
+        /* 計時器樣式 */
+        .timer-bar { width: 100%; height: 6px; background: #eee; border-radius: 3px; margin-bottom: 15px; overflow: hidden; }
+        .timer-fill { height: 100%; background: #007bff; width: 100%; transition: width 1s linear; }
+        .timer-text { font-weight: bold; color: #dc3545; margin-bottom: 5px; display: block; }
+
+        /* 記憶階段專用樣式 */
+        .blur-answer { filter: blur(8px); user-select: none; transition: filter 0.5s; }
+        .prep-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: bold; z-index: 5; flex-direction: column; }
+
+        /* 排行榜 Modal */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 400px;
+            text-align: center; position: relative; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        
+        .rank-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; font-size: 18px; }
+        .rank-1 { color: #d63031; font-weight: bold; font-size: 22px; background: #ffeaa7; border: none; border-radius: 8px; margin-bottom: 5px; }
+        .rank-2 { color: #e17055; font-weight: bold; font-size: 20px; }
+        .rank-3 { color: #74b9ff; font-weight: bold; }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="fixedTopDiv">
+    </div>
+
+    <div class="layout-wrapper">
+        <aside class="ad-sidebar left-ad"><div class="ad-placeholder"></div></aside>
+
+        <div class="content">
+
+            <div id="screen-login" class="screen active">
+                <div class="game-card">
+                    <h1>🤫 誰是瞎掰王</h1>
+                    <p>輸入暱稱與房號即可加入</p>
+                    <input type="text" id="username" class="game-input" placeholder="你的暱稱">
+                    <input type="text" id="room-id" class="game-input" placeholder="房間號碼 (例: 8888)">
+                    <div style="text-align: left; width: 80%; margin: 0 auto;">
+                        <label>預計遊玩人數 (僅房主有效)：</label>
+                        <select id="player-count" class="game-select" style="width: 100%;">
+                            <option value="3">3 人</option>
+                            <option value="4" selected>4 人</option>
+                            <option value="5">5 人</option>
+                            <option value="6">6 人</option>
+                        </select>
+                    </div>
+                    <button class="game-btn" onclick="checkAndJoinGame()">加入 / 建立房間</button>
+                    <button class="game-btn" style="background: #dc3545; margin-top: 10px;" onclick="resetRoom()">🔴 重置房間 (測試用)</button>
+                </div>
+            </div>
+
+            <div id="screen-lobby" class="screen">
+                <div class="game-card">
+                    <h2>房間: <span id="lobby-room-id"></span></h2>
+                    <p>等待玩家: <span id="current-count" style="color:#007bff; font-weight:bold;">0</span> / <span id="max-count">4</span></p>
+                    <div id="player-list"></div>
+                    <br>
+                    <div id="lobby-controls"></div>
+                </div>
+            </div>
+
+            <div id="screen-preparing" class="screen">
+                <div class="game-card">
+                    <div class="round-badge">第 <span id="round-display-p">1</span> 回合</div>
+                    <h2 style="color:#e67e22;">🤫 請記住答案！</h2>
+                    <span class="timer-text">剩餘時間：<span id="prep-timer">20</span> 秒</span>
+                    <div class="timer-bar"><div id="prep-fill" class="timer-fill"></div></div>
+                    
+                    <h3>題目：</h3>
+                    <h1 id="prep-question">...</h1>
+                    <hr>
+                    <div id="prep-content"></div>
+                </div>
+            </div>
+
+            <div id="screen-discussing" class="screen">
+                <div class="game-card">
+                    <div class="round-badge">第 <span id="round-display-d">1</span> 回合</div>
+                    <h3>題目：</h3>
+                    <h1 id="discuss-question">...</h1>
+                    <hr>
+                    <div id="discuss-content"></div>
+                    <br>
+                    <div id="discuss-controls"></div>
+                </div>
+            </div>
+
+            <div id="screen-voting" class="screen">
+                <div class="game-card">
+                    <div class="round-badge">第 <span id="round-display-v">1</span> 回合</div>
+                    <span class="timer-text">⏰ 投票倒數：<span id="vote-timer">30</span> 秒</span>
+                    <div class="timer-bar"><div id="vote-fill" class="timer-fill"></div></div>
+                    <h2>你覺得誰講的是實話？</h2>
+                    <div id="voting-status" class="waiting-msg" style="display:none; margin-bottom:10px;">等待其他人投票中...</div>
+                    <div id="voting-options"></div>
+                </div>
+            </div>
+
+            <div id="screen-result" class="screen">
+                <div class="game-card">
+                    <div class="round-badge">第 <span id="round-display-r">1</span> 回合</div>
+                    <button onclick="showRankingModal()" style="position:absolute; top:10px; right:10px; background:none; border:none; cursor:pointer; font-size:20px;">🏆</button>
+                    <h2>真相揭曉！</h2>
+                    <p>真相者是：<span id="truther-name" class="role-truth"></span></p>
+                    <p>正確答案是：<span id="real-answer" style="font-weight:bold;"></span></p>
+                    <hr>
+                    <h3>本局得分明細</h3>
+                    <div id="vote-result-list" style="text-align:left;"></div>
+                    <br>
+                    <div id="result-controls"></div>
+                </div>
+            </div>
+
+            <div id="ranking-modal" class="modal-overlay">
+                <div class="modal-content">
+                    <h2>🏆 第 <span id="rank-round-num">5</span> 輪成績結算 🏆</h2>
+                    <p style="color:#666; margin-bottom:20px;">目前的排名如下：</p>
+                    <div id="ranking-list" style="text-align:left; max-height: 300px; overflow-y: auto;"></div>
+                    <br>
+                    <button class="game-btn" onclick="closeRankingModal()">關閉</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 50px; padding: 20px; background: rgba(0,0,0,0.03); border-radius: 15px; text-align: left; color: #555;">
+                <h3 style="text-align: center; color: #333; margin-bottom: 20px;">📖 瞎掰王遊戲規則</h3>
+                <div style="margin-bottom: 15px;">
+                    <strong style="color: #d63031;">🎯 遊戲目標 (積分制)</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 15px;">
+                        這是一個比誰更會「推理」與「誤導」的遊戲。
+                        <br>✅ <strong>答對真相 +20分</strong>：如果你成功投給真相者，獎勵你的慧眼。
+                        <br>✅ <strong>瞎掰人被投 +10分</strong>：你騙到人了！
+                        <br>✅ <strong>真相者被投 +15分</strong>：你的解釋很有說服力！
+                        <br>🚫 <strong>人數限制</strong>：必須 3~6 人才能開局。
+                    </p>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <strong style="color: #e17055;">💡 提示機制</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 15px;">
+                        瞎掰人雖然沒有答案，但會獲得 <strong>3 個關鍵字提示</strong>。
+                        <br><span style="font-size: 13px; color: #888;">(注意：這 3 個提示裡，只有 1 個是真的相關，另外 2
+                            個是誤導陷阱！你可以選擇利用它們，或完全憑空捏造。)</span>
+                    </p>
+                </div>
+                <div>
+                    <strong style="color: #6c5ce7;">🎲 遊玩流程</strong>
+                    <ol style="margin: 5px 0 0 20px; font-size: 15px; padding-left: 0;">
+                        <li><strong>發牌：</strong>系統隨機選出一位真相者。</li>
+                        <li><strong>準備階段 (20秒)</strong>：真相者能看到答案，趕快背下來！瞎掰人看提示想故事。</li>
+                        <li><strong>嘴砲階段：</strong>大家輪流解釋這個名詞是什麼（建議放下手機，用說的）。</li>
+                        <li><strong>投票：</strong>聽完所有人的解釋後，在手機上投出你覺得<strong>「講真話」</strong>的那個人。</li>
+                        <li><strong>結算：</strong>得票最多的人獲勝（或看誰成功騙到最多票）。</li>
+                    </ol>
+                </div>
+            </div>
+
+        </div>
+        <aside class="ad-sidebar right-ad"><div class="ad-placeholder"></div></aside>
+    </div>
+
+    <footer class="site-footer">
+        <div class="footer-content">
+            <p>&copy; <span id="year">2026</span> All rights reserved.</p>
+        </div>
+    </footer>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // ==========================================
+        // ⚠️ 請在這裡填入你的 Firebase Config
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDhBRsuR_c0fcrWhn91AXLj1WwDJrQwqYs",
+            authDomain: "liargamedemo.firebaseapp.com",
+            databaseURL: "https://liargamedemo-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "liargamedemo",
+            storageBucket: "liargamedemo.firebasestorage.app",
+            messagingSenderId: "665863201888",
+            appId: "1:665863201888:web:d2f61574e6e44d18efcf05"
+        };
+        // ==========================================
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let myName = "";
+        let roomId = "";
+        let myId = "user_" + Math.floor(Math.random() * 100000);
+        let timerInterval = null; 
+
+        window.onload = function () {
+            const storedUser = localStorage.getItem('username') || localStorage.getItem('user');
+            if (storedUser) {
+                document.getElementById('username').value = storedUser;
+            }
+        };
+
+        const questionsDB = [
+            { q: "小黃鴨效應", a: "電腦工程師的除錯方法。透過對著一隻黃色小鴨玩具詳細解釋程式碼，來找出程式錯誤的過程", hints: ["寫程式", "洗澡習慣", "幼兒心理"] },
+            { q: "切香腸戰術", a: "一種政治/軍事策略。意指以漸進、微小的方式，像切香腸薄片一樣，一步步達成對手不會立即反擊的目標", hints: ["談判策略", "烹飪技巧", "外科手術"] },
+            { q: "伊頓混亂", a: "一種傳統英式甜點。混合了草莓、蛋白脆餅(Meringue)和鮮奶油，據說起源於伊頓公學", hints: ["甜點", "諧音", "物理現象"] },
+            { q: "傑利蠑螈", a: "選區劃分不公。為了特定政黨利益而重新劃分選區邊界，導致地圖形狀奇怪（如蠑螈）的政治手段。", hints: ["政治手段", "兩棲動物", "果凍口味"] },
+            { q: "貨物崇拜", a: "一種宗教形式。太平洋原住民見到二戰美軍空投物資，以為是神蹟，透過模仿美軍儀式（如做假飛機）來祈求物資降臨。", hints: ["宗教儀式", "物流管理", "網購成癮"] },
+            { q: "拉撒路現象", a: "死後自動復活。指心肺復甦術(CPR)停止後，病人循環系統突然自發恢復運作的極罕見現象", hints: ["醫學奇蹟", "聖經故事", "魔術手法"] },
+            { q: "斯特魯普效應", a: "字義與字色干擾測試。例如用藍色墨水寫「紅」這個字，受試者唸出顏色時反應會變慢的心理現象", hints: ["心理測驗", "物理光學", "印刷錯誤"] },
+            { q: "巴黎症候群", a: "日本人特有的心理疾病。指日本遊客對巴黎抱有過高幻想，實際造訪後發現髒亂或粗魯而導致的精神崩潰。", hints: ["心理崩潰", "傳染病", "時尚迷戀"] },
+            { q: "異手症", a: "手部失控。患者的一隻手會不由自主地動作，彷彿有自己的意識（例如自行解開扣子或抓取物品）。", hints: ["神經疾病", "靈異現象", "魔術表演"] },
+            { q: "爆炸頭症候群", a: "一種睡眠障礙。患者在入睡或醒來時，腦中會突然聽到巨大的爆炸聲或槍聲，但現實中並無此聲音。", hints: ["睡眠障礙", "髮型設計", "頭部外傷"] },
+            { q: "梧桐樹條約", a: "紐約證交所的起源。1792年，24名股票經紀人在華爾街一棵梧桐樹下簽署的協議，奠定了紐約證券交易所的基礎", hints: ["金融歷史", "園藝法規", "環保公約"] },
+            { q: "波特金村莊", a: "專門做給長官看的假象。源於俄國大臣為了取悅凱薩琳大帝，在巡視路線上搭建的只有外牆、沒有居民的假村莊。", hints: ["造假工程", "俄國童話", "建築風格"] },
+            { q: "西施舌", a: "一種貝類（蛤蜊）。分佈於沿海淺海，肉質鮮美，因其白色斧足形似舌頭而得名", hints: ["海鮮", "古代酷刑", "植物"] },
+            { q: "生命之星", a: "緊急醫療救護的標誌。就是救護車上常見的那根藍色六芒星，中間有一條蛇纏繞著權杖", hints: ["醫療標誌", "天文現象", "海洋生物"] },
+            { q: "真珠舍利寶幢", a: "國寶級文物。蘇州博物館的鎮館之寶，用幾萬顆珍珠串成的佛教工藝品", hints: ["佛教寶物", "建築物", "珠寶首飾"] },
+            { q: "斯特普尼克情人", a: "村上春樹的小說名。書名來自蘇聯的人造衛星「Sputnik」，意指像金屬塊般孤獨在軌道運行的關係", hints: ["小說書名", "蘇聯間諜", "調酒名稱"] },
+            { q: "超一流運動選手的蛋", a: "《獵人》中的寶物。動漫《HUNTER×HUNTER》貪婪之島篇中的卡片道具，孵化後會掉出一名優秀運動員", hints: ["動漫道具", "生物科技", "營養食品"] },
+            { q: "防禦性駕駛", a: "一種駕駛觀念。指駕駛時預測可能的危險（如假設別人會違規），並預先採取措施以避免事故", hints: ["開車觀念", "軍事演習", "電玩遊戲"] },
+            { q: "鴯鶓戰爭", a: "人類輸給鳥的戰爭。1932年澳洲軍隊用機關槍去打擊數量過多的鴯鶓（澳洲鴕鳥），結果鳥跑太快打不到，軍隊浪費子彈後撤退，官方承認戰敗", hints: ["澳洲歷史", "電玩遊戲", "神話故事"] },
+            { q: "愛爾福特廁所災難", a: "貴族掉進糞坑淹死。1184年神聖羅馬帝國的貴族們聚會時，地板因為太重塌陷，導致60多名貴族掉進樓下的化糞池淹死", hints: ["歷史悲劇", "衛生工程", "天災"] },
+            { q: "殭屍審判", a: "審判死人。西元897年，一位教宗把前任教宗的屍體挖出來，穿上法袍架在椅子上進行審判，最後判決屍體有罪", hints: ["宗教歷史", "恐怖電影", "巫術儀式"] },
+            { q: "缺席舞會", a: "國王差點被燒死。1393年法國國王舉辦舞會，幾個貴族扮成野人穿易燃服裝，結果不小心著火，差點燒死國王", hints: ["法國歷史", "曠課理由", "鬼故事"] },
+            { q: "倫敦啤酒淹災", a: "啤酒海嘯。1814年倫敦一家啤酒廠的大酒桶破裂，導致147萬公升啤酒沖毀房屋，淹死了8個人", hints: ["工業意外", "狂歡節日", "酒吧活動"] },
+            { q: "麵條化", a: "被黑洞吸進去的過程。天文學正式術語，指物體在強大引力場中被拉伸變長、像麵條一樣的現象", hints: ["天文現象", "烹飪過程", "恐怖刑罰"] },
+            { q: "惡魔核心", a: "一顆放射性鈽球。二戰期間的一顆鈽核心，因兩次實驗意外導致科學家遭受輻射死亡，因而得名", hints: ["核能實驗", "重金屬樂團", "遊戲魔王"] },
+            { q: "薩戈米爾", a: "劍龍尾巴上的刺。原本是漫畫家Gary Larson開玩笑亂取的，結果被古生物學家正式採用", hints: ["恐龍部位", "北歐神話", "魔戒角色"] },
+            { q: "上帝粒子", a: "希格斯玻色子。物理學上賦予其他粒子質量的基本粒子，因為太難找到而被戲稱為上帝粒子。", hints: ["物理學", "基督教", "奈米科技"] },
+            { q: "自動釀酒症候群", a: "腸道會自己產酒。患者腸道內發酵菌過多，吃澱粉就會在體內轉化為酒精，導致沒喝酒也會醉", hints: ["罕見疾病", "釀酒技術", "酒駕藉口"] },
+            { q: "外國口音症候群", a: "腦傷後口音改變。患者腦部受傷後，說話語調突然變成像外國人（例如台灣人講話突然變英國腔）", hints: ["腦部損傷", "語言學習", "裝模作樣"] },
+            { q: "司湯達症候群", a: "看藝術品看到暈倒。指人看到太美麗的藝術品時，產生心跳加速、暈眩甚至幻覺的症狀", hints: ["心理反應", "視力問題", "法國旅遊"] },
+            { q: "科塔爾症候群", a: "行屍走肉症。患者堅信自己已經死了、內臟腐爛了或根本不存在", hints: ["精神妄想", "喪屍病毒", "哲學理論"] },
+            { q: "長單字恐懼症", a: "害怕很長的單字。諷刺的是，這個單字本身就超級長，專門用來嚇患者的", hints: ["恐懼症", "語言學", "拼字比賽"] },
+            { q: "愛麗絲夢遊仙境症候群", a: "視覺大小失真。患者看東西會忽大忽小，感覺自己變得很小或很大，通常發生在兒童時期或偏頭痛時", hints: ["感知異常", "童話故事", "毒品反應"] },
+            { q: "愛格萊特", a: "鞋帶頭。鞋帶末端那個包住的塑膠或金屬小套管", hints: ["鞋子部位", "貴族名字", "化學元素"] },
+            { q: "夫拉", a: "壓眼閃光。閉眼用力揉眼睛時，眼前出現的那些光斑或幾何圖形", hints: ["視覺現象", "舞蹈名稱", "非洲國家"] },
+            { q: "潮土油", a: "雨後的泥土味。下雨時，雨水打在乾燥土壤上釋放出的那種特殊氣味", hints: ["氣味", "原油種類", "按摩精油"] },
+            { q: "座架", a: "鑰匙孔的蓋子。或是門把手周圍的金屬裝飾片", hints: ["門鎖零件", "騎馬裝備", "飛機座位"] },
+            { q: "鮭魚法案", a: "英國法律：禁止可疑地持有鮭魚。真的有一條法律叫這個名字，規定「在可疑情況下處理鮭魚」是違法的", hints: ["奇怪法律", "料理食譜", "生態保育"] },
+            { q: "維尼禁令", a: "波蘭：禁止遊樂場出現小熊維尼。因為小熊維尼沒穿褲子，且性別不明，被認為對兒童有不良影響", hints: ["奇怪法律", "卡通審查", "蜂蜜管制"] },
+            { q: "牛仔靴條款", a: "加州：沒養牛不准穿牛仔靴。加州Blythe市曾規定，除非你擁有至少兩頭牛，否則穿牛仔靴是違法的", hints: ["奇怪法律", "時尚災難", "西部電影"] },
+            { q: "轉生許可證", a: "中國：轉世需要政府批准。中國國家宗教事務局規定，活佛轉世必須提出申請並獲得政府批准", hints: ["宗教法規", "靈異遊戲", "投胎指南"] },
+            { q: "禁止死在國會大廈", a: "英國傳說法律。據說死在國會大廈的人有資格享受國葬，所以法律禁止你在那裡死掉（雖然這條法律已被證實是誤傳，但很有名，適合拿來騙人）", hints: ["都會傳說", "建築法規", "葬禮習俗"] },
+            { q: "加卡洛普", a: "長鹿角的兔子。美國民間傳說中的生物，據說會模仿人類說話，喜歡喝威士忌", hints: ["傳說生物", "混種實驗", "卡通角色"] },
+            { q: "濕眶客", a: "因為長太醜而一直哭的生物。傳說住在賓州森林裡，皮膚鬆垮長滿疣，因為自卑而躲避人類，被抓到時會化成一灘淚水", hints: ["傳說生物", "眼部疾病", "沼澤怪物"] },
+            { q: "薩卡斯基·弗林吉黑德", a: "勃氏新熱鳚（一種魚）。這種魚的名字直譯就是「諷刺的劉海頭」，牠生氣時會張開巨大的嘴巴互咬，像在接吻", hints: ["怪魚", "饒舌歌手", "印第安人"] },
+            { q: "雞龜", a: "一種真實存在的烏龜。因為肉吃起來像雞肉而得名，脖子特別長", hints: ["爬蟲類", "料理名", "罵人髒話"] },
+            { q: "喪屍螞蟻真菌", a: "控制螞蟻大腦的真菌。這就是《最後生還者》遊戲中喪屍設定的原型，真菌會感染螞蟻，控制牠爬到高處咬住葉子，然後從螞蟻頭部長出來散播孢子", hints: ["自然生態", "恐怖電影", "生化武器"] },
+            { q: "淑女手指", a: "手指餅乾。提拉米蘇裡面用的那種長條形海綿餅乾", hints: ["餅乾", "美甲款式", "植物"] },
+            { q: "蘇格蘭啄木鳥", a: "炒蛋配鯷魚吐司。完全沒有鳥肉，是一道維多利亞時期的英式鹹味點心", hints: ["菜餚", "鳥類", "威士忌"] },
+            { q: "威爾斯兔子", a: "起司吐司。把起司醬淋在烤吐司上，完全沒有兔子肉。據說是諷刺威爾斯人窮到吃不起肉，只能吃起司", hints: ["菜餚", "哺乳動物", "寵物"] },
+            { q: "斑點迪克", a: "一種英式布丁。用羊油和果乾做成的傳統甜點，「Dick」在古英語中可能是指麵團或布丁", hints: ["甜點", "性病症狀", "偵探綽號"] }
+        ];
+
+        function checkAndJoinGame() {
+            myName = document.getElementById('username').value;
+            roomId = document.getElementById('room-id').value;
+            const inputMaxPlayers = document.getElementById('player-count').value;
+
+            if (!myName) return alert("請輸入名字！");
+            if (!roomId) return alert("請輸入房號！");
+
+            db.ref(`rooms/${roomId}`).once('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    registerPlayer();
+                } else {
+                    db.ref(`rooms/${roomId}/owner`).set(myId);
+                    db.ref(`rooms/${roomId}/config/maxPlayers`).set(inputMaxPlayers);
+                    db.ref(`rooms/${roomId}/game/round`).set(0); 
+                    registerPlayer();
+                }
+            });
+        }
+
+        function registerPlayer() {
+            db.ref(`rooms/${roomId}/players/${myId}`).set({
+                name: myName,
+                voteFor: "",
+                score: 0,
+                lastRoundScore: 0,
+                lastRoundDetail: "" 
+            });
+            db.ref(`rooms/${roomId}`).on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) updateScreen(data);
+            });
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startGame() {
+            db.ref(`rooms/${roomId}/players`).once('value', (snapshot) => {
+                const players = snapshot.val();
+                const playerIds = Object.keys(players);
+                
+                if (playerIds.length < 3 || playerIds.length > 6) {
+                    alert(`目前有 ${playerIds.length} 人，必須 3~6 人才能開始遊戲！`);
+                    return; 
+                }
+
+                const randomQ = questionsDB[Math.floor(Math.random() * questionsDB.length)];
+                let hints = randomQ.hints ? [...randomQ.hints] : ["無提示", "無提示", "無提示"];
+                const correctHint = hints[0];
+                const shuffledHints = shuffleArray(hints);
+                const randomTruther = playerIds[Math.floor(Math.random() * playerIds.length)];
+
+                // === 新增：準備階段邏輯 ===
+                // 設定準備階段結束時間 (現在 + 20秒)
+                const prepEndTime = Date.now() + 20000;
+
+                db.ref(`rooms/${roomId}`).once('value', (roomSnap) => {
+                    const roomData = roomSnap.val();
+                    const currentRound = (roomData.game && roomData.game.round) ? roomData.game.round : 0;
+                    const nextRound = currentRound + 1;
+
+                    playerIds.forEach(pid => {
+                        db.ref(`rooms/${roomId}/players/${pid}`).update({ 
+                            voteFor: "",
+                            lastRoundScore: 0,
+                            lastRoundDetail: ""
+                        });
+                    });
+
+                    db.ref(`rooms/${roomId}`).update({
+                        state: "PREPARING", // 先進入準備階段
+                        phaseEndTime: prepEndTime, // 寫入結束時間
+                        "game/round": nextRound,
+                        votingEndTime: 0, 
+                        roundInfo: {
+                            question: randomQ.q,
+                            answer: randomQ.a,
+                            trutherId: randomTruther,
+                            hints: shuffledHints,
+                            correctHint: correctHint
+                        }
+                    });
+                });
+            });
+        }
+
+        function goToVoting() {
+            const endTime = Date.now() + 30000; 
+            db.ref(`rooms/${roomId}`).update({ 
+                state: "VOTING",
+                votingEndTime: endTime
+            });
+        }
+
+        function submitVote(targetId) {
+            db.ref(`rooms/${roomId}/players/${myId}`).update({ voteFor: targetId });
+            checkIfAllVoted();
+        }
+
+        function checkIfAllVoted() {
+            db.ref(`rooms/${roomId}/players`).once('value', (snapshot) => {
+                const players = snapshot.val();
+                if (!players) return;
+
+                const totalPlayers = Object.keys(players).length;
+                let votedCount = 0;
+                Object.values(players).forEach(p => { if (p.voteFor) votedCount++; });
+
+                if (votedCount >= totalPlayers) {
+                   calculateResult();
+                }
+            });
+        }
+
+        function calculateResult() {
+            db.ref(`rooms/${roomId}`).once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data.state === "RESULT") return;
+
+                const players = data.players;
+                const trutherId = data.roundInfo.trutherId;
+                const updates = {};
+                updates['state'] = "RESULT";
+                updates['votingEndTime'] = 0;
+
+                Object.entries(players).forEach(([pid, p]) => {
+                    let currentScore = p.score || 0;
+                    let roundScore = 0;
+                    let detailCorrect = 0;
+                    let detailReceived = 0;
+
+                    if (p.voteFor && p.voteFor !== "ABSTAIN") {
+                        if (p.voteFor === trutherId) {
+                            roundScore += 20;
+                            detailCorrect = 20;
+                        }
+                    }
+
+                    const receivedVotes = Object.values(players).filter(voter => voter.voteFor === pid).length;
+                    let voteBonus = 0;
+                    if (receivedVotes > 0) {
+                        if (pid === trutherId) {
+                            voteBonus = receivedVotes * 15; 
+                        } else {
+                            voteBonus = receivedVotes * 10;
+                        }
+                    }
+                    roundScore += voteBonus;
+                    detailReceived = voteBonus;
+
+                    let detailStr = "";
+                    if(roundScore > 0) {
+                        detailStr = "(";
+                        if(detailCorrect > 0) detailStr += `答對+${detailCorrect} `;
+                        if(detailReceived > 0) detailStr += `被投+${detailReceived}`;
+                        detailStr = detailStr.trim() + ")";
+                    } else if (p.voteFor === "ABSTAIN") {
+                        detailStr = "(棄權無分)";
+                    }
+
+                    updates[`players/${pid}/score`] = currentScore + roundScore;
+                    updates[`players/${pid}/lastRoundScore`] = roundScore;
+                    updates[`players/${pid}/lastRoundDetail`] = detailStr;
+                });
+
+                db.ref(`rooms/${roomId}`).update(updates);
+            });
+        }
+
+        function updateScreen(data) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById('ranking-modal').style.display = 'none';
+
+            if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+
+            const currentRound = (data.game && data.game.round) ? data.game.round : 1;
+            document.querySelectorAll('[id^="round-display"]').forEach(el => el.innerText = currentRound);
+
+            const isOwner = (data.owner === myId);
+
+            // ===================================
+            // 1. 大廳 (LOBBY)
+            // ===================================
+            if (!data.state || data.state === "LOBBY") {
+                document.getElementById('screen-lobby').classList.add('active');
+                document.getElementById('lobby-room-id').innerText = roomId;
+                const players = data.players || {};
+                const currentCount = Object.keys(players).length;
+                const maxCount = (data.config && data.config.maxPlayers) ? data.config.maxPlayers : 4;
+                document.getElementById('current-count').innerText = currentCount;
+                document.getElementById('max-count').innerText = maxCount;
+                
+                const list = document.getElementById('player-list');
+                list.innerHTML = "";
+                Object.entries(players).forEach(([id, p]) => {
+                    const isMe = (id === myId) ? "me" : "";
+                    const badgeText = (id === myId) ? "(我)" : "";
+                    const score = p.score || 0;
+                    list.innerHTML += `
+                        <div class="player-badge ${isMe}">
+                            <span>👤 ${p.name} ${badgeText}</span>
+                            <span><span class="score-tag">🏆 ${score}分</span> 準備中</span>
+                        </div>`;
+                });
+
+                const ctrlDiv = document.getElementById('lobby-controls');
+                if (isOwner) {
+                    ctrlDiv.innerHTML = `<button class="game-btn" onclick="startGame()">所有人到齊，開始！</button>`;
+                } else {
+                    ctrlDiv.innerHTML = `<p class="waiting-msg" style="color:#666; animation:none;">等待房主開始遊戲...</p>`;
+                }
+
+            // ===================================
+            // 2. 準備階段 (PREPARING) - 新增狀態
+            // ===================================
+            } else if (data.state === "PREPARING") {
+                document.getElementById('screen-preparing').classList.add('active');
+                
+                // 倒數計時邏輯 (20秒)
+                const endTime = data.phaseEndTime || 0;
+                if (endTime > 0) {
+                    startPhaseTimer(endTime, "prep", () => {
+                        // 時間到，只有房主觸發轉場，避免重複寫入
+                        if (isOwner) {
+                            db.ref(`rooms/${roomId}`).update({ state: "DISCUSSING" });
+                        }
+                    });
+                }
+
+                document.getElementById('prep-question').innerText = data.roundInfo.question;
+                const contentDiv = document.getElementById('prep-content');
+                contentDiv.innerHTML = "";
+
+                if (myId === data.roundInfo.trutherId) {
+                    // 真相者：顯示答案 (趕快背！)
+                    contentDiv.innerHTML = `
+                        <div style="background:#d4edda; padding:15px; border-radius:10px; border:1px solid #c3e6cb;">
+                            <p class="role-truth" style="margin:0 0 10px 0;">🤫 你是真相者！</p>
+                            <p style="margin:0;">請在 20 秒內記住答案：</p>
+                            <h2 style="margin:10px 0; font-size:24px; color:#155724;">${data.roundInfo.answer}</h2>
+                            <p style="font-size:12px; color:#666;">(時間到後答案會消失)</p>
+                        </div>
+                    `;
+                } else {
+                    // 瞎掰者：顯示提示
+                    let hintsHtml = "";
+                    if (data.roundInfo.hints) {
+                        data.roundInfo.hints.forEach(hint => {
+                            hintsHtml += `<span style="display:inline-block; background:#6c757d; color:white; padding:5px 12px; border-radius:15px; font-size:14px; margin:2px;">${hint}</span>`;
+                        });
+                    }
+                    contentDiv.innerHTML = `
+                        <p class="role-liar">😎 你是瞎掰人！</p>
+                        <p>趁現在看提示編故事：</p>
+                        <div style="margin-top:10px;">${hintsHtml}</div>
+                    `;
+                }
+
+            // ===================================
+            // 3. 嘴砲階段 (DISCUSSING) - 原本的 READING
+            // ===================================
+            } else if (data.state === "DISCUSSING" || data.state === "READING") { 
+                // 兼容舊版 READING 狀態
+                document.getElementById('screen-discussing').classList.add('active');
+                document.getElementById('discuss-question').innerText = data.roundInfo.question;
+                const contentDiv = document.getElementById('discuss-content');
+                contentDiv.innerHTML = "";
+
+                if (myId === data.roundInfo.trutherId) {
+                    // 真相者：答案被隱藏了！
+                    contentDiv.innerHTML = `
+                        <p class="role-truth">🤫 你是真相者！</p>
+                        <div style="background:#eee; color:#999; padding:20px; border-radius:10px; margin-top:10px;">
+                            <span class="material-icons" style="font-size:48px;">visibility_off</span>
+                            <br>答案已隱藏<br>開始你的表演！
+                        </div>
+                    `;
+                } else {
+                    // 瞎掰者：繼續顯示提示
+                    let hintsHtml = "";
+                    if (data.roundInfo.hints) {
+                        data.roundInfo.hints.forEach(hint => {
+                            hintsHtml += `<span style="display:inline-block; background:#6c757d; color:white; padding:5px 12px; border-radius:15px; font-size:14px; margin:2px;">${hint}</span>`;
+                        });
+                    }
+                    contentDiv.innerHTML = `
+                        <p class="role-liar">😎 你是瞎掰人！</p>
+                        <p>請瞎掰一個解釋！</p>
+                        <div style="margin-top:10px;">${hintsHtml}</div>
+                    `;
+                }
+
+                const ctrlDiv = document.getElementById('discuss-controls');
+                if (isOwner) {
+                    ctrlDiv.innerHTML = `<button class="game-btn" onclick="goToVoting()">進入投票階段</button>`;
+                } else {
+                    ctrlDiv.innerHTML = `<p class="waiting-msg" style="color:#666; animation:none;">等待房主按下投票...</p>`;
+                }
+
+            // ===================================
+            // 4. 投票 (VOTING)
+            // ===================================
+            } else if (data.state === "VOTING") {
+                document.getElementById('screen-voting').classList.add('active');
+                const endTime = data.votingEndTime || 0;
+                if (endTime > 0) {
+                    startPhaseTimer(endTime, "vote", () => {
+                        // 時間到，自動棄權
+                        db.ref(`rooms/${roomId}/players/${myId}/voteFor`).once('value', snapshot => {
+                            if (!snapshot.val()) submitVote("ABSTAIN");
+                        });
+                    });
+                }
+
+                const btnContainer = document.getElementById('voting-options');
+                if (btnContainer.innerHTML === "") {
+                    if (data.players) {
+                        Object.entries(data.players).forEach(([pid, p]) => {
+                            if (pid !== myId) {
+                                btnContainer.innerHTML += `<button class="game-btn btn-vote" onclick="submitVote('${pid}')">投給 ${p.name}</button>`;
+                            }
+                        });
+                    }
+                }
+                if (data.players[myId] && data.players[myId].voteFor) {
+                    document.getElementById('voting-status').style.display = 'block';
+                    document.querySelectorAll('.btn-vote').forEach(btn => { btn.disabled = true; btn.classList.add('voted'); });
+                } else {
+                    document.getElementById('voting-status').style.display = 'none';
+                }
+
+            // ===================================
+            // 5. 結果 (RESULT)
+            // ===================================
+            } else if (data.state === "RESULT") {
+                document.getElementById('screen-result').classList.add('active');
+                document.getElementById('voting-options').innerHTML = "";
+                const trutherId = data.roundInfo.trutherId;
+                const trutherName = data.players[trutherId].name;
+                document.getElementById('truther-name').innerText = trutherName;
+                document.getElementById('real-answer').innerText = data.roundInfo.answer;
+                
+                const resultList = document.getElementById('vote-result-list');
+                resultList.innerHTML = "";
+                
+                Object.entries(data.players).forEach(([pid, p]) => {
+                    const scoreGain = p.lastRoundScore > 0 ? `<span class="score-plus">+${p.lastRoundScore}</span>` : "";
+                    const detail = p.lastRoundDetail ? `<span class="score-detail">${p.lastRoundDetail}</span>` : "";
+                    let targetName = "未投票";
+                    if (p.voteFor && p.voteFor !== "ABSTAIN" && data.players[p.voteFor]) {
+                        targetName = data.players[p.voteFor].name;
+                    } else if (p.voteFor === "ABSTAIN") {
+                        targetName = "棄權";
+                    }
+                    
+                    const isTruther = (pid === trutherId) ? "👑" : "";
+                    
+                    resultList.innerHTML += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 8px 0;">
+                            <div style="text-align: left; flex: 1;">
+                                <div style="margin-bottom: 2px;">
+                                    <span style="font-weight:bold; font-size: 16px;">${p.name} ${isTruther}</span> 
+                                    <span style="font-size: 14px; color: #555;">➡ ${targetName}</span>
+                                </div>
+                                <div style="font-size: 13px; display: flex; align-items: center; gap: 5px;">
+                                    ${scoreGain} ${detail}
+                                </div>
+                            </div>
+                            <div style="text-align: right; min-width: 60px;">
+                                <div style="font-size: 12px; color: #aaa;">總分</div>
+                                <div style="font-weight: bold; font-size: 18px; color: #333;">${p.score}</div>
+                            </div>
+                        </div>`;
+                });
+
+                if (currentRound > 0 && currentRound % 5 === 0) {
+                    showRankingModal(currentRound);
+                }
+
+                const ctrlDiv = document.getElementById('result-controls');
+                if (isOwner) {
+                    ctrlDiv.innerHTML = `<button class="game-btn" onclick="startGame()">下一題</button>`;
+                } else {
+                    ctrlDiv.innerHTML = `<p class="waiting-msg" style="color:#666; animation:none;">等待房主下一題...</p>`;
+                }
+            }
+        }
+
+        // 通用計時器 (prefix 用來區分是 prep 還是 vote)
+        function startPhaseTimer(endTime, prefix, onComplete) {
+            const timerEl = document.getElementById(prefix + '-timer');
+            const fillEl = document.getElementById(prefix + '-fill');
+            const duration = (prefix === 'prep') ? 20000 : 30000; 
+            
+            function tick() {
+                const now = Date.now();
+                const diff = endTime - now;
+                
+                if (diff <= 0) {
+                    clearInterval(timerInterval);
+                    if(timerEl) timerEl.innerText = "0";
+                    if(fillEl) fillEl.style.width = "0%";
+                    if (onComplete) onComplete();
+                    return;
+                }
+                
+                const sec = Math.ceil(diff / 1000);
+                if(timerEl) timerEl.innerText = sec;
+                const percent = (diff / duration) * 100;
+                if(fillEl) fillEl.style.width = percent + "%";
+            }
+            
+            tick();
+            timerInterval = setInterval(tick, 1000);
+        }
+
+        function showRankingModal(roundNum) {
+            if (!roundNum) roundNum = document.getElementById('round-display-r').innerText;
+            document.getElementById('rank-round-num').innerText = roundNum;
+            const listDiv = document.getElementById('ranking-list');
+            listDiv.innerHTML = "";
+
+            db.ref(`rooms/${roomId}/players`).once('value', (snapshot) => {
+                const players = snapshot.val();
+                const sortedPlayers = Object.values(players).sort((a, b) => (b.score || 0) - (a.score || 0));
+
+                sortedPlayers.forEach((p, index) => {
+                    let rankClass = "";
+                    let medal = "";
+                    if (index === 0) { rankClass = "rank-1"; medal = "🥇 "; }
+                    else if (index === 1) { rankClass = "rank-2"; medal = "🥈 "; }
+                    else if (index === 2) { rankClass = "rank-3"; medal = "🥉 "; }
+                    else { medal = `No.${index + 1} `; }
+
+                    listDiv.innerHTML += `
+                        <div class="rank-item ${rankClass}">
+                            <span>${medal}${p.name}</span>
+                            <span>${p.score || 0} 分</span>
+                        </div>`;
+                });
+                document.getElementById('ranking-modal').style.display = 'flex';
+            });
+        }
+
+        function closeRankingModal() {
+            document.getElementById('ranking-modal').style.display = 'none';
+        }
+
+        function resetRoom() {
+            roomId = document.getElementById('room-id').value;
+            if (confirm(`確定要清空房間 ${roomId} 的所有資料嗎？`)) {
+                db.ref('rooms/' + roomId).remove().then(() => { alert("房間已重置！"); location.reload(); });
+            }
+        }
+    </script>
+{% endblock %}

@@ -253,6 +253,28 @@ def tasks():
 
     return render_template("patient_tasks.html")
 
+# ========== Game / Games Menu ========== 陳威任新增
+
+@bp.get("/games")
+@login_required
+def game_menu():
+    # 這裡定義了要在選單上顯示的遊戲資料
+    available_games = [
+        {
+            "id": "liar_king",
+            "title": "瞎掰王",
+            "desc": "發揮想像力，看看誰在說謊！",
+            "icon": "🎭",
+            "route": "patient.game_liar_king" # 這要對應到下方的函數名稱
+        }
+    ]
+    # 關鍵：必須把 available_games 傳給名為 games 的變數
+    return render_template("patient_game_menu.html", games=available_games)
+
+@bp.get("/game/liar-king")
+@login_required
+def game_liar_king():
+    return render_template("game_liar_king.html")
 
 # ========== Store / Pet ==========
 @bp.get("/pet")

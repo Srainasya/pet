@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="game-menu-container" style="padding: 20px;">
+    <h2 style="text-align: center; margin-bottom: 30px;">🎮 遊戲大廳</h2>
+    
+    <div class="game-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        {% for game in games %}
+        <a href="{{ url_for(game.route) }}" class="game-card" style="text-decoration: none; color: inherit;">
+            <div style="background: white; border-radius: 15px; padding: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 40px; margin-bottom: 10px;">{{ game.icon }}</div>
+                <div style="font-weight: bold; font-size: 18px;">{{ game.title }}</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">{{ game.desc }}</div>
+            </div>
+        </a>
+        {% endfor %}
+        
+        <div style="background: #f0f0f0; border-radius: 15px; padding: 20px; text-align: center; border: 2px dashed #ccc; color: #999;">
+            <div style="font-size: 40px; margin-bottom: 10px;">❓</div>
+            <div>敬請期待</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
