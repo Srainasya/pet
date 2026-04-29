@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>今日任務</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='task_today.css') }}">
+</head>
+
+<body>
+
+<div class="task-page">
+
+  <h1>今日任務</h1>
+
+  <div id="card">
+    <div>你的任務</div>
+
+    <div id="taskText">載入中…</div>
+
+    <div class="action-row">
+      <button id="doneBtn">我完成了</button>
+      <span id="status"></span>
+    </div>
+
+    <div class="hint">
+      ※ 需要失智者按「確認完成」，才會算真正完成
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const taskText = document.getElementById("taskText");
+  const doneBtn = document.getElementById("doneBtn");
+  const statusEl = document.getElementById("status");
+
+  async function gateRole() {
+    const r = await fetch("/api/patient/today_status");
+    const s = await r.json();
+
+    if (!r.ok) {
+      taskText.textContent = "讀取失敗";
+      statusEl.textContent = s.error || r.status;
+      doneBtn.disabled = true;
+      return false;
+    }
+
+    if (s.role !== "caregiver") {
+      location.href = "/patient/farm";
+      return false;
+    }
+
+    return true;
+  }
+
+  async function load() {
+    const r = await fetch("/api/tasks/today");
+    const j = await r.json();
+
+    if (!r.ok) {
+      taskText.textContent = "讀取失敗";
+      statusEl.textContent = j.error || r.status;
+      doneBtn.disabled = true;
+      return;
+    }
+
+    taskText.textContent =
+      j.task_text || "今天尚未指派任務（請稍後再試）";
+
+    if (j.completed) {
+      doneBtn.disabled = true;
+      statusEl.textContent = "✅ 已完成（已被確認）";
+    } else if (j.caregiver_done && !j.patient_confirmed) {
+      doneBtn.disabled = true;
+      statusEl.textContent = "已送出，等待失智者確認…";
+    } else {
+      doneBtn.disabled = false;
+      statusEl.textContent = "";
+    }
+  }
+
+  doneBtn.addEventListener("click", async () => {
+    doneBtn.disabled = true;
+    statusEl.textContent = "送出中…";
+
+    const r = await fetch("/api/tasks/complete", {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({})
+    });
+
+    const j = await r.json();
+
+    if (!r.ok) {
+      statusEl.textContent = "失敗：" + (j.error || r.status);
+      doneBtn.disabled = false;
+      return;
+    }
+
+    statusEl.textContent = "已送出，等待確認…";
+    await load();
+  });
+
+  (async () => {
+    const ok = await gateRole();
+    if (!ok) return;
+    await load();
+    setInterval(load, 10000);
+  })();
+</script>
+
+</body>
+</html>

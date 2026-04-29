@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}Farm Home{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/farm.css">
+{% endblock %}
+
+{% block body %}
+<div class="scene">
+
+  <!-- ================= HUD ================= -->
+  <div class="hud">
+    <div class="hud-left">
+      <div class="bar">
+        <div class="bar-fill" id="progressFill" style="width:0%"></div>
+      </div>
+      <div class="hud-text" id="hudText">今日進度：0/4</div>
+    </div>
+
+    <div class="hud-right">
+      <div class="chip">拼圖：<span id="petPieces">0</span></div>
+    </div>
+  </div>
+  
+  {% if group %}
+  <div class="family-invite-card">
+    <div class="invite-title">家庭邀請碼</div>
+    <div class="invite-code">{{ group.invite_code }}</div>
+    <div class="invite-tip">把這組邀請碼給家人，他們就能加入你的家庭</div>
+  </div>
+  {% endif %}
+  <!-- ================= PET ================= -->
+  <div class="pet-sprite" id="pet">
+    <div class="pet-bubble" id="petBubble">嗨～</div>
+    <div class="pet-emoji" id="petBody">
+    {% if equipped_pet and equipped_pet.image %}
+      <img src="{{ equipped_pet.image }}" alt="{{ equipped_pet.name }}" class="pet-img">
+    {% else %}
+      🐰
+    {% endif %}
+    </div>
+  </div>
+
+
+  <!-- ================= PET HOME ================= -->
+  <!-- 直接用 a 當房子，不要 hotspot 疊兩層 -->
+  <a class="pet-home" href="/patient/pet" aria-label="寵物的家">
+    <div class="home-roof"></div>
+    <div class="home-body">
+      <div class="home-door"></div>
+      <div class="home-window"></div>
+    </div>
+    <div class="home-tag">寵物的家</div>
+  </a>
+
+
+  <!-- ================= BOTTOM DOCK ================= -->
+  <!-- 不再用 sign + hotspot，那是舊版 -->
+  <div class="dock">
+
+    <a class="dock-item" href="/patient/tasks">
+      <span class="ico"></span>
+      <span class="txt">任務</span>
+    </a>
+
+    <a class="dock-item" href="/patient/qa">
+      <span class="ico"></span>
+      <span class="txt">問答</span>
+    </a>
+
+    <a class="dock-item" href="/patient/photos">
+      <span class="ico"></span>
+      <span class="txt">相簿</span>
+    </a>
+
+      <a class="dock-item" href="/patient/calendar">
+        <span class="ico"></span>
+        <span class="txt">日曆</span>
+      </a>
+      
+  </div>
+
+
+  <!-- ================= FOCUS ================= -->
+  {% if focus %}
+  <div class="focus-overlay" id="focusOverlay">
+    <div class="focus-card">
+      <div class="focus-title">有新的提醒</div>
+      <div class="focus-desc">請按開始，進入今天的互動。</div>
+      <button class="focus-btn" id="focusBtn">開始</button>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+/* =========================
+   Farm Home JS (SAFE)
+   - status / progress
+   - pet wander avoids dock + home + hud
+   - no pointer (avoid null errors)
+   ========================= */
+
+(function () {
+  // ---------- helpers ----------
+  function $(sel) { return document.querySelector(sel); }
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function rand(min, max) { return Math.random() * (max - min) + min; }
+
+  // ---------- elements ----------
+  const pet = $("#pet");
+  const bubble = $("#petBubble");
+  const progressFill = $("#progressFill");
+  const hudText = $("#hudText");
+  const petPieces = $("#petPieces");
+
+  const dock = $(".dock");
+  const home = $(".pet-home");
+  const hud = $(".hud");
+
+  // (optional) add a simple tip above dock (so you still have guidance)
+  // If you don't want, you can remove createTipBar() call below.
+let tipBar = null;
+let tipTextEl = null;
+
+function createTipBar() {
+  tipBar = document.createElement("div");
+  tipBar.className = "tip";
+  tipBar.id = "tipBar";
+
+  // close btn
+  const btn = document.createElement("button");
+  btn.className = "tip-close";
+  btn.id = "tipClose";
+  btn.type = "button";
+  btn.setAttribute("aria-label", "關閉提示");
+  btn.textContent = "✕";
+
+  // text
+  tipTextEl = document.createElement("div");
+  tipTextEl.className = "tip-text";
+  tipTextEl.id = "tipText";
+  tipTextEl.textContent = "歡迎回來～";
+
+  tipBar.appendChild(btn);
+  tipBar.appendChild(tipTextEl);
+  document.body.appendChild(tipBar);
+
+  // bind close (不記 localStorage，重整會再出現)
+  btn.addEventListener("click", () => {
+    tipBar.classList.add("is-hidden");
+  });
+}
+createTipBar();
+// ---- tip dismiss (no persistence) ----
+
+  // ---------- status ----------
+  async function loadStatus() {
+    try {
+      const res = await fetch("/api/patient/today_status");
+      const s = await res.json();
+
+      const done = [s.photo_done, s.mood_done, s.qa_done, s.task_done].filter(Boolean).length;
+      hudText.textContent = `今日進度：${done}/4`;
+      petPieces.textContent = s.pet_pieces_unlocked ?? 0;
+      progressFill.style.width = `${(done / 4) * 100}%`;
+
+      // next action -> tip text (dock style)
+      const msgMap = {
+        photos: "下一步：去相簿上傳/查看照片",
+        mood:   "下一步：去問答先選今天心情",
+        qa:     "下一步：去問答完成今日問題",
+        tasks:  "下一步：去任務完成今天任務",
+        pet:    "太棒了～去寵物的家看看！"
+      };
+      if (tipTextEl) tipTextEl.textContent = msgMap[s.next_action] || msgMap.photos;
+    } catch (e) {
+      // avoid breaking page
+      if (tipBar) tipBar.textContent = "載入中…";
+      console.warn("loadStatus failed:", e);
+    }
+  }
+  loadStatus();
+
+  // ---------- focus overlay ----------
+  const focusBtn = $("#focusBtn");
+  if (focusBtn) {
+    focusBtn.addEventListener("click", async () => {
+      try { await document.documentElement.requestFullscreen(); } catch (e) {}
+      const ov = $("#focusOverlay");
+      if (ov) ov.style.display = "none";
+    });
+  }
+
+  // ---------- pet movement (avoid UI) ----------
+  let lastX = null;
+
+  function movePetToPx(x, y, durSec) {
+    pet.style.transition = `left ${durSec}s linear, top ${durSec}s linear`;
+    pet.style.left = x + "px";
+    pet.style.top = y + "px";
+
+    if (lastX !== null) {
+      if (x > lastX) pet.classList.add("pet-face-right");
+      else pet.classList.remove("pet-face-right");
+    }
+    lastX = x;
+  }
+
+  function getRects() {
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    const petRect = pet.getBoundingClientRect();
+    const petW = petRect.width || 170;
+    const petH = petRect.height || 170;
+
+    const hudR = hud ? hud.getBoundingClientRect() : null;
+    const dockR = dock ? dock.getBoundingClientRect() : null;
+    const homeR = home ? home.getBoundingClientRect() : null;
+
+    return { W, H, petW, petH, hudR, dockR, homeR };
+  }
+
+  function getSafeArea() {
+    const m = 14; // margin px
+    const { W, H, petW, petH, hudR, dockR, homeR } = getRects();
+
+    // base: full screen
+    let left = m;
+    let right = W - m - petW;
+    let top = m;
+    let bottom = H - m - petH;
+
+    // avoid HUD (top)
+    if (hudR) {
+      top = Math.max(top, hudR.bottom + 10);
+    }
+
+    // avoid dock (bottom)
+    if (dockR) {
+      bottom = Math.min(bottom, dockR.top - 10 - petH);
+    }
+
+    // keep inside screen
+    right = Math.max(left, right);
+    bottom = Math.max(top, bottom);
+
+    // obstacle: home rectangle (avoid this zone)
+    // We'll reject random points that land inside it.
+    return { left, right, top, bottom, homeR, petW, petH };
+  }
+
+  function isInsideRect(cx, cy, rect, pad = 10) {
+    if (!rect) return false;
+    return (
+      cx >= rect.left - pad &&
+      cx <= rect.right + pad &&
+      cy >= rect.top - pad &&
+      cy <= rect.bottom + pad
+    );
+  }
+
+  function pickPoint() {
+    const area = getSafeArea();
+
+    for (let i = 0; i < 30; i++) {
+      const x = rand(area.left, area.right);
+      const y = rand(area.top, area.bottom);
+
+      const cx = x + area.petW / 2;
+      const cy = y + area.petH / 2;
+
+      // avoid home
+      if (isInsideRect(cx, cy, area.homeR, 18)) continue;
+
+      return { x, y };
+    }
+
+    // fallback: center-ish
+    return { x: window.innerWidth * 0.55, y: window.innerHeight * 0.62 };
+  }
+
+  let wanderTimer = null;
+
+  function scheduleWander() {
+    if (wanderTimer) clearTimeout(wanderTimer);
+
+    wanderTimer = setTimeout(() => {
+      const p = pickPoint();
+      const dur = rand(1.2, 2.4);
+      movePetToPx(p.x, p.y, dur);
+      scheduleWander();
+    }, rand(1200, 3200));
+  }
+
+  function snapToSafe() {
+    const p = pickPoint();
+    movePetToPx(p.x, p.y, 0.01);
+  }
+
+  // resize/orientation change -> re-snap
+  window.addEventListener("resize", () => {
+    snapToSafe();
+  });
+
+  // initial
+  snapToSafe();
+  scheduleWander();
+
+  // ---------- pet interaction ----------
+  const LINES = ["摸摸～我在！","今天也要加油！","要不要先去相簿？","完成問答會有拼圖喔～"];
+
+  function showBubble(text, ms = 1200) {
+    bubble.textContent = text;
+    bubble.classList.add("show");
+    setTimeout(() => bubble.classList.remove("show"), ms);
+  }
+
+  function spawnHeart() {
+    const h = document.createElement("div");
+    h.className = "heart";
+    h.textContent = "💖";
+    h.style.left = rand(35, 65) + "%";
+    pet.appendChild(h);
+    setTimeout(() => h.remove(), 900);
+  }
+
+  pet.addEventListener("click", () => {
+    pet.classList.remove("pet-hop"); void pet.offsetWidth; pet.classList.add("pet-hop");
+    spawnHeart(); spawnHeart();
+    showBubble(LINES[Math.floor(Math.random() * LINES.length)]);
+  });
+
+})();
+</script>
+{% endblock %}

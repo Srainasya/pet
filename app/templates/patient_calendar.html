@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}回憶日曆{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="calendar-page">
+
+  <div class="calendar-topbar">
+    <a class="back-btn" href="{{ url_for('patient.farm') }}">← 回房間</a>
+    <div class="calendar-title">回憶日曆</div>
+  </div>
+
+  <div class="calendar-header">
+    <a class="month-nav" href="{{ url_for('patient.patient_calendar', year=prev_year, month=prev_month) }}">‹ 上個月</a>
+    <div class="month-label">{{ year }} 年 {{ month }} 月</div>
+    <a class="month-nav" href="{{ url_for('patient.patient_calendar', year=next_year, month=next_month) }}">下個月 ›</a>
+  </div>
+
+  <div class="calendar-grid weekday-row">
+    <div class="weekday">日</div>
+    <div class="weekday">一</div>
+    <div class="weekday">二</div>
+    <div class="weekday">三</div>
+    <div class="weekday">四</div>
+    <div class="weekday">五</div>
+    <div class="weekday">六</div>
+  </div>
+
+  <div class="calendar-body">
+    {% for week in month_days %}
+    <div class="calendar-grid">
+      {% for day in week %}
+        {% set in_month = (day.month == month) %}
+        {% set has_record = (day in record_dates) %}
+        <a
+          href="{{ url_for('patient.patient_calendar_day', date_str=day.isoformat()) }}"
+          class="day-cell
+                 {% if not in_month %}other-month{% endif %}
+                 {% if has_record %}has-record{% endif %}
+                 {% if day == today %}today{% endif %}">
+          <div class="day-number">{{ day.day }}</div>
+
+          {% if has_record %}
+            <div class="day-dot"></div>
+            <div class="day-label">有紀錄</div>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

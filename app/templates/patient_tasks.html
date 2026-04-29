@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}確認任務{% endblock %}
+{% block body %}
+<div style="font-family:system-ui; padding:24px; max-width:720px; margin:0 auto;">
+  <h1 style="font-size:34px;">確認任務</h1>
+
+  <div style="margin-top:14px; color:#555; font-weight:700;">
+    這裡會列出「家人已按完成」的任務，你按確認後才算真正完成 ✅
+  </div>
+
+  <div id="list" style="margin-top:14px;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const list = document.getElementById("list");
+
+  function esc(s){
+    return (s||"")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;");
+  }
+
+  async function getStatus() {
+    const r = await fetch("/api/patient/today_status");
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    return j;
+  }
+
+  async function loadPending() {
+    const r = await fetch("/api/tasks/pending_confirmations");
+    const j = await r.json();
+
+    if (!r.ok) {
+      list.innerHTML = `<div style="color:#b00;">錯誤：${esc(j.error || r.status)}</div>`;
+      return;
+    }
+
+    const items = j.items || [];
+    if (items.length === 0) {
+      list.innerHTML = `<div style="color:#777;">目前沒有待確認的任務 🙂</div>`;
+      return;
+    }
+
+    list.innerHTML = "";
+    items.forEach(it => {
+      const card = document.createElement("div");
+      card.style.background = "white";
+      card.style.border = "1px solid #e5e7eb";
+      card.style.borderRadius = "16px";
+      card.style.padding = "14px";
+      card.style.marginBottom = "10px";
+
+      card.innerHTML = `
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          ${it.avatar_url
+            ? `<img src="${it.avatar_url}" style="width:38px;height:38px;border-radius:999px;object-fit:cover;">`
+            : `<div style="width:38px;height:38px;border-radius:999px;background:#eee;"></div>`
+          }
+          <div style="flex:1;">
+            <div style="font-weight:1000; font-size:16px;">${esc(it.caregiver_name)}</div>
+            <div style="margin-top:6px; font-size:18px; white-space:pre-wrap;">${esc(it.task_text)}</div>
+            <button data-id="${it.task_id}" style="margin-top:10px; padding:10px 14px; font-size:16px;">
+              我確認他已完成
+            </button>
+            <span class="st" style="margin-left:10px; color:#555; font-weight:700;"></span>
+          </div>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+
+    list.querySelectorAll("button[data-id]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const st = btn.parentElement.querySelector(".st");
+        btn.disabled = true;
+        st.textContent = "送出中…";
+
+        const r2 = await fetch("/api/tasks/confirm", {
+          method:"POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({task_id: parseInt(btn.dataset.id)})
+        });
+        const j2 = await r2.json();
+
+        if (!r2.ok) {
+          st.textContent = "失敗：" + (j2.error || r2.status);
+          btn.disabled = false;
+          return;
+        }
+
+        st.textContent = "✅ 已確認";
+        await init(); // 刷新（會重新 role gate + reload）
+      });
+    });
+  }
+
+  async function init() {
+    list.innerHTML = `<div style="color:#777;">載入中…</div>`;
+
+    let s;
+    try {
+      s = await getStatus();
+    } catch (e) {
+      list.innerHTML = `<div style="color:#b00;">狀態讀取失敗：${esc(e.message)}</div>`;
+      return;
+    }
+
+    // ✅ 角色 gate：不是 patient 就不要打 pending_confirmations（避免 403）
+    if (s.role !== "patient") {
+      list.innerHTML = `
+        <div style="background:#fff3f3; border:1px solid #ffd1d1; padding:14px; border-radius:14px; color:#900; font-weight:800;">
+          只有「失智者（patient）」可以確認任務。你目前是：${esc(s.role || "unknown")}
+        </div>
+        <div style="margin-top:12px;">
+          <a href="/patient/farm" style="display:inline-block; padding:10px 14px; border:1px solid #ddd; border-radius:12px; text-decoration:none;">
+            回農場
+          </a>
+        </div>
+      `;
+      return;
+    }
+
+    // patient 才載入待確認清單
+    await loadPending();
+  }
+
+  init();
+</script>
+{% endblock %}

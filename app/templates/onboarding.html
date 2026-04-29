@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Onboarding{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='onboarding.css') }}?v=1">
+{% endblock %}
+
+{% block body %}
+<div class="onboarding-page">
+  <header class="ob-header">
+    <h2>第一次使用：選身分 & 綁定家庭</h2>
+    <p class="ob-sub">選好身分後，建立或加入同一個家庭，家人才能看到彼此的任務與回憶。</p>
+  </header>
+
+  <form class="ob-card" method="post" action="/onboarding/submit" autocomplete="off">
+    <!-- 身分 -->
+    <section class="ob-section">
+      <h3>身分</h3>
+
+      <label class="ob-option">
+        <input type="radio" name="role" value="patient" required>
+        <span class="ob-option-text">
+          <span class="ob-option-title">失智者</span>
+          <span class="ob-option-desc">用於確認家人完成的任務、查看回憶內容。</span>
+        </span>
+      </label>
+
+      <label class="ob-option">
+        <input type="radio" name="role" value="caregiver" required>
+        <span class="ob-option-text">
+          <span class="ob-option-title">家人</span>
+          <span class="ob-option-desc">用於完成每日任務、上傳照片與陪伴互動。</span>
+        </span>
+      </label>
+    </section>
+
+    <!-- 家庭 -->
+    <section class="ob-section">
+      <h3>家庭</h3>
+
+      <label class="ob-option">
+        <input type="radio" name="mode" value="create" required>
+        <span class="ob-option-text">
+          <span class="ob-option-title">建立家庭</span>
+          <span class="ob-option-desc">第一次使用請建立一個家庭，之後分享邀請碼給家人。</span>
+        </span>
+      </label>
+
+      <div class="ob-panel">
+        <div class="ob-field">
+          <div class="ob-label">家庭名稱</div>
+          <input name="family_name" placeholder="例如：小明的家" inputmode="text">
+        </div>
+      </div>
+
+      <label class="ob-option">
+        <input type="radio" name="mode" value="join" required>
+        <span class="ob-option-text">
+          <span class="ob-option-title">加入家庭</span>
+          <span class="ob-option-desc">輸入家人提供的邀請碼加入同一個家庭。</span>
+        </span>
+      </label>
+
+      <div class="ob-panel">
+        <div class="ob-field">
+          <div class="ob-label">邀請碼</div>
+          <input name="invite_code" placeholder="例如：A1B2C3" inputmode="text" autocapitalize="characters">
+        </div>
+      </div>
+    </section>
+
+    <button class="ob-submit" type="submit">完成</button>
+
+    <p class="ob-logout">
+      <a href="/auth/logout">登出</a>
+    </p>
+  </form>
+</div>
+
+<script>
+  // UX：選到 create 就聚焦 family_name；選到 join 就聚焦 invite_code
+  const roleRadios = document.querySelectorAll('input[name="role"]');
+  const modeRadios = document.querySelectorAll('input[name="mode"]');
+  const familyInput = document.querySelector('input[name="family_name"]');
+  const inviteInput = document.querySelector('input[name="invite_code"]');
+
+  modeRadios.forEach(r => {
+    r.addEventListener('change', () => {
+      if (r.value === 'create') {
+        setTimeout(() => familyInput && familyInput.focus(), 0);
+      }
+      if (r.value === 'join') {
+        setTimeout(() => inviteInput && inviteInput.focus(), 0);
+      }
+    });
+  });
+
+  // 小防呆：送出時，如果選 create 但 family_name 空，就提醒；join 同理
+  const form = document.querySelector('form[action="/onboarding/submit"]');
+  form.addEventListener('submit', (e) => {
+    const mode = document.querySelector('input[name="mode"]:checked')?.value;
+    if (mode === 'create' && familyInput && !familyInput.value.trim()) {
+      e.preventDefault();
+      alert('請輸入家庭名稱');
+      familyInput.focus();
+      return;
+    }
+    if (mode === 'join' && inviteInput && !inviteInput.value.trim()) {
+      e.preventDefault();
+      alert('請輸入邀請碼');
+      inviteInput.focus();
+      return;
+    }
+  });
+</script>
+{% endblock %}

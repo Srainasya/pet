@@ -1,0 +1,8 @@
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.7
+Flask-Login==0.6.3
+Authlib==1.3.1
+python-dotenv==1.0.1
+#psycopg2-binary==2.9.9 目前在本地跑是不需要這個的，我就先註解掉了，不然會影響我設立本地端
+requests

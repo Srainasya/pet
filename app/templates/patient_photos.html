@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>回憶相簿</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='patient_photos.css') }}?v=1">
+</head>
+
+<body>
+  <main class="photos-page">
+
+    <header class="topbar">
+      <div>
+        <h1>回憶相簿</h1>
+        <div class="sub">今天：{{ today }}　｜　照片數：<b>{{ photos|length }}</b></div>
+      </div>
+    </header>
+
+    <section class="upload-card">
+      <div class="upload-title">上傳照片</div>
+
+      <form class="upload-form" method="POST" enctype="multipart/form-data">
+        <label class="file">
+          <input type="file" name="photo" accept="image/*" required>
+          <span class="file-btn">選擇照片</span>
+          <span class="file-hint" id="fileHint">尚未選擇</span>
+        </label>
+
+        <button class="primary" type="submit">上傳</button>
+      </form>
+
+      <div class="tip">
+        建議：上傳「重要的人物」或「近期生活照」，比較容易引導回憶。
+      </div>
+    </section>
+
+    {% if photos|length == 0 %}
+      <section class="empty">
+        <div class="empty-card">
+          <div class="empty-title">目前還沒有照片</div>
+          <div class="empty-sub">先上傳一張照片吧（例如家人合照、常去的地方）。</div>
+        </div>
+      </section>
+    {% else %}
+
+      {# --- 依日期分組：YYYY-MM-DD --- #}
+      {% set ns = namespace(prev_date="") %}
+
+      <section class="gallery">
+
+        {% for p in photos %}
+          {% set d = (p.created_at|string)[:10] %}
+
+          {% if d != ns.prev_date %}
+            {% if ns.prev_date != "" %}
+              </div>
+            </section>
+            {% endif %}
+
+            <section class="day">
+              <div class="day-head">
+                <div class="day-title">{{ d }}</div>
+                <div class="day-sub">點照片可放大查看</div>
+              </div>
+              <div class="grid">
+            {% set ns.prev_date = d %}
+          {% endif %}
+
+          <figure class="photo-card">
+            <button class="photo-btn" type="button"
+              data-src="{{ url_for('static', filename=p.stored_path) }}"
+              data-name="{{ p.original_name }}"
+              data-time="{{ p.created_at }}">
+              <img loading="lazy"
+                   src="{{ url_for('static', filename=p.stored_path) }}"
+                   alt="{{ p.original_name }}">
+            </button>
+
+            <figcaption class="meta">
+              <div class="name" title="{{ p.original_name }}">{{ p.original_name }}</div>
+              <div class="time">{{ p.created_at }}</div>
+            </figcaption>
+          </figure>
+
+        {% endfor %}
+
+            </div>
+          </section>
+
+      </section>
+    {% endif %}
+
+  </main>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" aria-hidden="true">
+    <div class="lb-backdrop" data-close></div>
+    <div class="lb-panel" role="dialog" aria-modal="true" aria-label="照片預覽">
+      <button class="lb-close" type="button" data-close>✕</button>
+      <img id="lbImg" alt="">
+      <div class="lb-meta">
+        <div class="lb-name" id="lbName"></div>
+        <div class="lb-time" id="lbTime"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // file name hint
+    const fileInput = document.querySelector('input[name="photo"]');
+    const fileHint = document.getElementById('fileHint');
+    if (fileInput && fileHint){
+      fileInput.addEventListener('change', () => {
+        fileHint.textContent = fileInput.files?.[0]?.name || '尚未選擇';
+      });
+    }
+
+    // lightbox
+    const lb = document.getElementById('lightbox');
+    const lbImg = document.getElementById('lbImg');
+    const lbName = document.getElementById('lbName');
+    const lbTime = document.getElementById('lbTime');
+
+    function openLB(src, name, time){
+      lbImg.src = src;
+      lbName.textContent = name || '';
+      lbTime.textContent = time || '';
+      lb.classList.add('show');
+      lb.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeLB(){
+      lb.classList.remove('show');
+      lb.setAttribute('aria-hidden', 'true');
+      lbImg.src = '';
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.photo-btn');
+      if (btn){
+        openLB(btn.dataset.src, btn.dataset.name, btn.dataset.time);
+        return;
+      }
+      if (e.target && e.target.hasAttribute('data-close')) closeLB();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && lb.classList.contains('show')) closeLB();
+    });
+  </script>
+</body>
+</html>

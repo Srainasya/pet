@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}每日紀錄{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='calendar.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="calendar-page">
+
+  <div class="calendar-topbar">
+    <a class="back-btn" href="{{ url_for('patient.patient_calendar', year=target_date.year, month=target_date.month) }}">← 回日曆</a>
+    <div class="calendar-title">{{ target_date.strftime('%Y-%m-%d') }} 紀錄</div>
+  </div>
+
+  <!-- 照片 -->
+  <div class="detail-section">
+    <h2>照片</h2>
+
+    {% if photos %}
+      <div class="photo-grid">
+        {% for photo, user in photos %}
+          <div class="photo-card big-photo-card">
+            <div class="record-user">
+              {% if user.avatar_url %}
+                <img src="{{ user.avatar_url }}" alt="{{ user.name or 'user' }}" class="avatar">
+              {% else %}
+                <div class="avatar avatar-fallback">
+                  {{ (user.name or user.email or 'U')[0] }}
+                </div>
+              {% endif %}
+              <div class="record-user-meta">
+                <div class="record-user-name">{{ user.name or user.email or ('User #' ~ user.id) }}</div>
+                <div class="record-user-sub">上傳照片</div>
+              </div>
+            </div>
+
+            <img
+            src="{{ url_for('static', filename=photo.stored_path) }}"
+            alt="{{ photo.original_name or '照片' }}"
+            class="record-photo-img previewable-photo"
+            data-fullsrc="{{ url_for('static', filename=photo.stored_path) }}"
+            data-filename="{{ photo.original_name or '照片' }}"
+            >
+            <div class="meta">
+              {{ photo.original_name or '照片' }}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-text">這一天沒有照片。</p>
+    {% endif %}
+  </div>
+
+  <!-- 心情 -->
+  <div class="detail-section">
+    <h2>心情</h2>
+
+    {% if moods %}
+      <div class="record-list">
+        {% for mood, user in moods %}
+          <div class="info-card">
+            <div class="record-user">
+              {% if user.avatar_url %}
+                <img src="{{ user.avatar_url }}" alt="{{ user.name or 'user' }}" class="avatar">
+              {% else %}
+                <div class="avatar avatar-fallback">
+                  {{ (user.name or user.email or 'U')[0] }}
+                </div>
+              {% endif %}
+              <div class="record-user-meta">
+                <div class="record-user-name">{{ user.name or user.email or ('User #' ~ user.id) }}</div>
+                <div class="record-user-sub">今日心情</div>
+              </div>
+            </div>
+
+            <div class="record-body">
+              {{ mood.mood }}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-text">這一天沒有心情紀錄。</p>
+    {% endif %}
+  </div>
+
+  <!-- 問答 -->
+  <div class="detail-section">
+    <h2>問答</h2>
+
+    {% if qas %}
+      <div class="record-list">
+        {% for qa, user in qas %}
+          <div class="info-card">
+            <div class="record-user">
+              {% if user.avatar_url %}
+                <img src="{{ user.avatar_url }}" alt="{{ user.name or 'user' }}" class="avatar">
+              {% else %}
+                <div class="avatar avatar-fallback">
+                  {{ (user.name or user.email or 'U')[0] }}
+                </div>
+              {% endif %}
+              <div class="record-user-meta">
+                <div class="record-user-name">{{ user.name or user.email or ('User #' ~ user.id) }}</div>
+                <div class="record-user-sub">每日問答</div>
+              </div>
+            </div>
+
+            <div class="qa-block">
+              <div class="qa-line"><span class="qa-tag">Q</span>{{ qa.question }}</div>
+              <div class="qa-line"><span class="qa-tag answer">A</span>{{ qa.answer }}</div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-text">這一天沒有問答紀錄。</p>
+    {% endif %}
+  </div>
+
+  <!-- 任務 -->
+  <div class="detail-section">
+    <h2>任務</h2>
+
+    {% if tasks %}
+      <div class="record-list">
+        {% for task, user in tasks %}
+          <div class="info-card">
+            <div class="record-user">
+              {% if user.avatar_url %}
+                <img src="{{ user.avatar_url }}" alt="{{ user.name or 'user' }}" class="avatar">
+              {% else %}
+                <div class="avatar avatar-fallback">
+                  {{ (user.name or user.email or 'U')[0] }}
+                </div>
+              {% endif %}
+              <div class="record-user-meta">
+                <div class="record-user-name">{{ user.name or user.email or ('User #' ~ user.id) }}</div>
+                <div class="record-user-sub">任務紀錄</div>
+              </div>
+            </div>
+
+            <div class="record-body">
+              <div class="status-row"><b>任務：</b>{{ task.task_text }}</div>
+              <div class="status-row"><b>家屬完成：</b>{{ "是" if task.caregiver_done else "否" }}</div>
+              <div class="status-row"><b>患者確認：</b>{{ "是" if task.patient_confirmed else "否" }}</div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-text">這一天沒有任務紀錄。</p>
+    {% endif %}
+  </div>
+
+  <!-- 進度 / 寵物狀態 -->
+  <div class="detail-section">
+    <h2>進度 / 寵物狀態</h2>
+
+    {% if progresses %}
+      <div class="record-list">
+        {% for progress, user in progresses %}
+          <div class="info-card">
+            <div class="record-user">
+              {% if user.avatar_url %}
+                <img src="{{ user.avatar_url }}" alt="{{ user.name or 'user' }}" class="avatar">
+              {% else %}
+                <div class="avatar avatar-fallback">
+                  {{ (user.name or user.email or 'U')[0] }}
+                </div>
+              {% endif %}
+              <div class="record-user-meta">
+                <div class="record-user-name">{{ user.name or user.email or ('User #' ~ user.id) }}</div>
+                <div class="record-user-sub">寵物進度</div>
+              </div>
+            </div>
+
+            <div class="record-body">
+              <div class="status-row"><b>任務完成：</b>{{ "是" if progress.task_done else "否" }}</div>
+              <div class="status-row"><b>寵物 XP：</b>{{ progress.pet_xp }}</div>
+              <div class="status-row"><b>寵物等級：</b>{{ progress.pet_level }}</div>
+              <div class="status-row"><b>獎勵解鎖：</b>{{ "是" if progress.reward_unlocked else "否" }}</div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-text">這一天沒有進度資料。</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- 照片預覽 Modal -->
+<div class="photo-preview-backdrop" id="photoPreviewBackdrop">
+  <div class="photo-preview-modal">
+    <button class="photo-preview-close" id="photoPreviewClose" type="button">✕</button>
+    <img id="photoPreviewImg" class="photo-preview-img" src="" alt="preview">
+    <div class="photo-preview-name" id="photoPreviewName"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const backdrop = document.getElementById("photoPreviewBackdrop");
+  const previewImg = document.getElementById("photoPreviewImg");
+  const previewName = document.getElementById("photoPreviewName");
+  const closeBtn = document.getElementById("photoPreviewClose");
+
+  document.querySelectorAll(".previewable-photo").forEach(img => {
+    img.addEventListener("click", () => {
+      const fullsrc = img.dataset.fullsrc || img.src;
+      const filename = img.dataset.filename || "照片";
+
+      previewImg.src = fullsrc;
+      previewName.textContent = filename;
+      backdrop.classList.add("show");
+      document.body.classList.add("modal-open");
+    });
+  });
+
+  function closePreview() {
+    backdrop.classList.remove("show");
+    previewImg.src = "";
+    previewName.textContent = "";
+    document.body.classList.remove("modal-open");
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", closePreview);
+  }
+
+  if (backdrop) {
+    backdrop.addEventListener("click", (e) => {
+      if (e.target === backdrop) {
+        closePreview();
+      }
+    });
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && backdrop.classList.contains("show")) {
+      closePreview();
+    }
+  });
+})();
+</script>
+{% endblock %}

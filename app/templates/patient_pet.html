@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}商店{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='store.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="store-page">
+
+  <!-- Top bar -->
+  <div class="store-topbar">
+    <a class="room-btn" href="{{ url_for('patient.farm') }}">
+      <span>🏡</span>
+      <span>我的房間</span>
+    </a>
+
+    <div class="store-title">商店</div>
+
+    <div class="coin-pill">
+      <span class="coin-icon">💰</span>
+      <span id="coinCount">{{ coins }}</span>
+      <button class="coin-plus" type="button">＋</button>
+    </div>
+  </div>
+
+  <!-- promo -->
+  <div class="promo-card" id="promoCard">
+    <div class="promo-left">
+      <div class="promo-icon">💰</div>
+      <div>
+        <div class="promo-title">需要更多金幣？</div>
+        <div class="promo-sub">點這裡購買金幣包！</div>
+      </div>
+    </div>
+    <button class="promo-close" id="promoClose" type="button">✕</button>
+  </div>
+
+  <!-- flash messages -->
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flash-wrap">
+        {% for message in messages %}
+          <div class="flash-msg">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- tabs -->
+  <div class="store-tabs">
+    <button class="tab-btn active" type="button" data-tab="items">物品</button>
+    <button class="tab-btn" type="button" data-tab="pets">寵物</button>
+  </div>
+
+  <!-- ================= 物品 ================= -->
+  <section class="store-section tab-panel active" id="panel-items">
+    <h2 class="section-title">物品</h2>
+
+    <div class="product-grid">
+      {% for item in items %}
+      <div class="product-card {% if item.locked %}locked{% endif %}">
+
+        <div class="product-icon">
+          {% if item.image %}
+            <img src="{{ item.image }}" alt="{{ item.name }}">
+          {% else %}
+            {{ item.icon or "📦" }}
+          {% endif %}
+        </div>
+
+        <div class="product-name">{{ item.name }}</div>
+
+        {% if item.owned %}
+          <form method="POST" action="{{ url_for('patient.equip_store_item', item_id=item.id) }}">
+            <button class="buy-btn equipped-btn" type="submit">
+              {% if item.equipped %}
+                <span>✅ 已使用</span>
+              {% else %}
+                <span>使用</span>
+              {% endif %}
+            </button>
+          </form>
+        {% else %}
+          <form method="POST"
+                action="{{ url_for('patient.buy_store_item', item_id=item.id) }}"
+                class="buy-form"
+                data-affordable="{{ '1' if item.affordable else '0' }}"
+                data-item-name="{{ item.name }}">
+            <button class="buy-btn {% if not item.affordable %}insufficient{% endif %}"
+                    type="submit"
+                    {% if item.locked %}disabled{% endif %}>
+              <span>💰</span>
+              <span>{{ "{:,}".format(item.price) }}</span>
+            </button>
+          </form>
+        {% endif %}
+
+        {% if item.locked %}
+        <div class="lock-overlay">
+          <div class="lock-icon">🔒</div>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- ================= 寵物 ================= -->
+  <section class="store-section tab-panel" id="panel-pets">
+    <h2 class="section-title">寵物</h2>
+
+    <div class="product-grid">
+      {% for pet in pets %}
+      <div class="product-card {% if pet.locked %}locked{% endif %}">
+
+        <div class="product-icon">
+          {% if pet.image %}
+            <img src="{{ pet.image }}" alt="{{ pet.name }}">
+          {% else %}
+            {{ pet.icon or "🐾" }}
+          {% endif %}
+        </div>
+
+        <div class="product-name">{{ pet.name }}</div>
+
+        {% if pet.owned %}
+          <form method="POST" action="{{ url_for('patient.equip_store_item', item_id=pet.id) }}">
+            <button class="buy-btn equipped-btn" type="submit">
+              {% if pet.equipped %}
+                <span>✅ 已使用</span>
+              {% else %}
+                <span>使用</span>
+              {% endif %}
+            </button>
+          </form>
+        {% else %}
+          <form method="POST"
+                action="{{ url_for('patient.buy_store_item', item_id=pet.id) }}"
+                class="buy-form"
+                data-affordable="{{ '1' if pet.affordable else '0' }}"
+                data-item-name="{{ pet.name }}">
+            <button class="buy-btn {% if not pet.affordable %}insufficient{% endif %}"
+                    type="submit"
+                    {% if pet.locked %}disabled{% endif %}>
+              <span>💰</span>
+              <span>{{ "{:,}".format(pet.price) }}</span>
+            </button>
+          </form>
+        {% endif %}
+
+        {% if pet.locked %}
+        <div class="lock-overlay">
+          <div class="lock-icon">🔒</div>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+</div>
+
+<!-- 簡易金幣不足小視窗 -->
+<div class="coin-modal-backdrop" id="coinModal" style="display:none;">
+  <div class="coin-modal">
+    <div class="coin-modal-title">金幣不足</div>
+    <div class="coin-modal-text" id="coinModalText">你的金幣不夠，無法購買這個商品。</div>
+    <button class="coin-modal-btn" id="coinModalClose" type="button">我知道了</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // 關閉上方提示卡
+  const promoClose = document.getElementById("promoClose");
+  const promoCard = document.getElementById("promoCard");
+  if (promoClose && promoCard) {
+    promoClose.addEventListener("click", () => {
+      promoCard.style.display = "none";
+    });
+  }
+
+  // Tabs 切換
+  const tabButtons = document.querySelectorAll(".tab-btn");
+  const tabPanels = document.querySelectorAll(".tab-panel");
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = btn.dataset.tab;
+
+      tabButtons.forEach(b => b.classList.remove("active"));
+      tabPanels.forEach(p => p.classList.remove("active"));
+
+      btn.classList.add("active");
+      document.getElementById(`panel-${target}`).classList.add("active");
+    });
+  });
+
+  // 金幣不足提示窗
+  const coinModal = document.getElementById("coinModal");
+  const coinModalClose = document.getElementById("coinModalClose");
+  const coinModalText = document.getElementById("coinModalText");
+
+  document.querySelectorAll(".buy-form").forEach(form => {
+    form.addEventListener("submit", function(e) {
+      const affordable = form.dataset.affordable;
+      const itemName = form.dataset.itemName || "這個商品";
+
+      if (affordable !== "1") {
+        e.preventDefault();
+        coinModalText.textContent = `你的金幣不夠，無法購買「${itemName}」。`;
+        coinModal.style.display = "flex";
+      }
+    });
+  });
+
+  if (coinModalClose) {
+    coinModalClose.addEventListener("click", () => {
+      coinModal.style.display = "none";
+    });
+  }
+
+  if (coinModal) {
+    coinModal.addEventListener("click", (e) => {
+      if (e.target === coinModal) {
+        coinModal.style.display = "none";
+      }
+    });
+  }
+</script>
+{% endblock %}

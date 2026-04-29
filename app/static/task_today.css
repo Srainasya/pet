@@ -1,0 +1,197 @@
+/* ===========================
+   Only for Today Task page
+   Scope: .task-page
+   Style: warm cream + soft medical blue
+   =========================== */
+
+.task-page{
+  --bg1: #fff7ef;          /* warm cream */
+  --bg2: #eef5ff;          /* soft blue */
+  --card: rgba(255,255,255,0.88);
+  --stroke: rgba(28, 42, 64, 0.08);
+  --text: #1f2a3a;
+  --muted: rgba(31,42,58,0.62);
+  --primary: #3b82f6;
+  --primary2: #2563eb;
+  --shadow: 0 18px 45px rgba(30, 41, 59, 0.10);
+  --shadow2: 0 10px 22px rgba(30, 41, 59, 0.08);
+  --r-xl: 26px;
+  --r-lg: 20px;
+  --r-md: 14px;
+
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC",
+               "Microsoft JhengHei", "PingFang TC", sans-serif;
+
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 18px;
+
+  color: var(--text);
+
+  /* background that feels "gentle" */
+  background:
+    radial-gradient(1000px 500px at 12% 10%, rgba(255, 214, 170, 0.55), transparent 60%),
+    radial-gradient(900px 520px at 92% 15%, rgba(145, 198, 255, 0.55), transparent 62%),
+    linear-gradient(180deg, var(--bg1), var(--bg2));
+  border-radius: var(--r-xl);
+}
+
+/* Title */
+.task-page h1{
+  margin: 6px 0 16px;
+  font-size: 34px;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+/* Card */
+.task-page #card{
+  margin-top: 10px;
+  padding: 20px;
+  border-radius: var(--r-xl);
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+/* decorative blobs */
+.task-page #card::before{
+  content:"";
+  position:absolute;
+  width: 280px;
+  height: 280px;
+  right: -120px;
+  top: -120px;
+  background: radial-gradient(circle at 30% 30%, rgba(59,130,246,0.20), transparent 60%);
+  transform: rotate(18deg);
+  pointer-events:none;
+}
+.task-page #card::after{
+  content:"";
+  position:absolute;
+  width: 320px;
+  height: 320px;
+  left: -150px;
+  bottom: -170px;
+  background: radial-gradient(circle at 50% 40%, rgba(255, 204, 153, 0.25), transparent 65%);
+  pointer-events:none;
+}
+
+/* "你的任務" */
+.task-page #card > div:first-child{
+  font-size: 14px;
+  font-weight: 900;
+  color: rgba(31,42,58,0.70);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.task-page #card > div:first-child::before{
+  content:"";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(59,130,246,0.85);
+  box-shadow: 0 0 0 6px rgba(59,130,246,0.12);
+}
+
+/* Task text */
+.task-page #taskText{
+  margin-top: 10px;
+  font-size: 24px;
+  line-height: 1.35;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+/* Action row */
+.task-page #card > div[style*="display:flex"]{
+  margin-top: 16px;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Button */
+.task-page #doneBtn{
+  appearance: none;
+  border: 0;
+  border-radius: 18px;
+  padding: 12px 18px;
+  min-height: 48px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+  cursor: pointer;
+
+  background: linear-gradient(180deg, var(--primary), var(--primary2));
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22);
+  transform: translateY(0);
+  transition: transform .08s ease, filter .2s ease, box-shadow .2s ease;
+}
+
+.task-page #doneBtn:hover{
+  filter: brightness(1.03);
+  box-shadow: 0 18px 34px rgba(37, 99, 235, 0.26);
+}
+
+.task-page #doneBtn:active{
+  transform: translateY(1px);
+}
+
+.task-page #doneBtn:disabled{
+  cursor: not-allowed;
+  background: linear-gradient(180deg, rgba(148,163,184,1), rgba(100,116,139,1));
+  box-shadow: none;
+}
+
+/* Status pill */
+.task-page #status{
+  font-size: 14px;
+  font-weight: 900;
+  color: rgba(31,42,58,0.70);
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(31,42,58,0.10);
+  background: rgba(255,255,255,0.65);
+  box-shadow: var(--shadow2);
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Hint note */
+.task-page #card > div[style*="※"]{
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid rgba(59,130,246,0.14);
+  background: rgba(59,130,246,0.08);
+  color: rgba(31,42,58,0.70);
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+/* Mobile */
+@media (max-width: 520px){
+  .task-page{
+    padding: 18px 14px;
+    border-radius: 18px;
+  }
+  .task-page h1{ font-size: 30px; }
+  .task-page #taskText{ font-size: 22px; }
+  .task-page #card{ padding: 18px; }
+  .task-page #card > div[style*="display:flex"]{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .task-page #doneBtn{ width: 100%; }
+  .task-page #status{
+    width: 100%;
+    justify-content: center;
+    border-radius: 16px;
+  }
+}
