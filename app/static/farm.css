@@ -503,3 +503,34 @@ body{
   font-size: 11px;
   color: #777;
 }
+
+/* ================= 登出按鈕 ================= */
+.hud .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background-color: #ff4d4d; /* 紅色背景 */
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+  transition: all 0.2s ease;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+
+.hud .nav-item:hover {
+  background-color: #cc0000;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0,0,0,0.2);
+}
+
+/* 確保圖示和文字水平對齊 */
+.hud .nav-item .icon {
+  font-size: 18px;
+}
+
+.hud .nav-item span {
+  font-size: 15px;
+}

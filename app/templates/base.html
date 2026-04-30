@@ -35,8 +35,8 @@
 </head>
 <body>
 
-  <!-- 全域返回按鈕 (農場首頁不顯示) -->
-  {% if request.endpoint != 'patient.farm' %}
+  <!-- 全域返回按鈕 (農場首頁與家屬首頁不顯示) -->
+  {% if request.endpoint != 'patient.farm' and request.endpoint != 'caregiver.tasks' %}
   <button onclick="window.history.back()" class="global-back-btn">
       ⬅ 返回
   </button>

@@ -8,8 +8,7 @@
 {% block body %}
 <div class="calendar-page">
 
-  <div class="calendar-topbar">
-    <a class="back-btn" href="{{ url_for('patient.patient_calendar', year=target_date.year, month=target_date.month) }}">← 回日曆</a>
+  <div class="calendar-topbar" style="justify-content: center; text-align: center;">
     <div class="calendar-title">{{ target_date.strftime('%Y-%m-%d') }} 紀錄</div>
   </div>
 

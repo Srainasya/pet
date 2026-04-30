@@ -17,9 +17,10 @@
       <div class="hud-text" id="hudText">今日進度：0/4</div>
     </div>
 
-    <div class="hud-right">
-      <div class="chip">拼圖：<span id="petPieces">0</span></div>
-    </div>
+    <a href="{{ url_for('auth.logout') }}" class="nav-item">
+      <div class="icon">🚪</div>
+      <span>登出</span>
+    </a>
   </div>
   
   {% if group %}
