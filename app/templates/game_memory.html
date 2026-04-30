@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="game-container" style="padding: 20px; text-align: center;">
+    <h2>🃏 記憶翻牌挑戰</h2>
+    
+    <!-- 計時器與狀態顯示區 -->
+    <div style="font-size: 20px; font-weight: bold; margin: 15px 0; color: #333;">
+        ⏱️ 經過時間：<span id="timer-display" style="color: #d63031;">0</span> 秒
+    </div>
+
+    <!-- 控制按鈕區 -->
+    <div style="margin-bottom: 20px;">
+        <button id="start-btn" onclick="startGame()" style="padding: 10px 24px; font-size: 18px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            開始遊戲
+        </button>
+    </div>
+    
+    <!-- 遊戲卡片版面 -->
+    <div id="game-board" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 400px; margin: 0 auto;">
+        <!-- 卡片會由 JS 動態產生 -->
+    </div>
+
+    <br><br>
+    <a href="{{ url_for('patient.game_menu') }}" style="color: #666; text-decoration: none; border-bottom: 1px solid #666;">⬅ 返回遊戲大廳</a>
+</div>
+
+<style>
+    .card {
+        height: 80px;
+        background: #568fc9; /* 統一的卡背顏色 */
+        color: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 35px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: transform 0.3s, background-color 0.3s;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    /* 不能點擊的狀態（還沒開始前） */
+    .card.disabled {
+        cursor: not-allowed;
+        opacity: 0.8;
+    }
+    .card.flipped {
+        background: white;
+        color: black;
+        border: 2px solid #568fc9;
+        transform: rotateY(180deg);
+    }
+    .card.matched {
+        background: #d4edda;
+        border: 2px solid #28a745;
+        cursor: default;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const emojis = ['🐶', '🐶', '🐱', '🐱', '🐭', '🐭', '🐹', '🐹', '🐰', '🐰', '🦊', '🦊', '🐻', '🐻', '🐼', '🐼'];
+    let flippedCards = [];
+    let matchedCount = 0;
+    
+    // 計時器相關變數
+    let timerInterval = null;
+    let secondsElapsed = 0;
+    let isGamePlaying = false; // 遊戲是否進行中
+
+    // 1. 初始化版面（一進畫面先排好卡片，但不給按）
+    function initBoard() {
+        const board = document.getElementById('game-board');
+        board.innerHTML = '';
+        
+        // 隨機洗牌
+        const shuffled = emojis.sort(() => Math.random() - 0.5);
+        
+        shuffled.forEach((emoji, index) => {
+            const card = document.createElement('div');
+            card.classList.add('card', 'disabled'); // 預設加上 disabled
+            card.dataset.emoji = emoji;
+            card.dataset.index = index;
+            card.onclick = () => flipCard(card);
+            board.appendChild(card);
+        });
+    }
+
+    // 2. 開始遊戲邏輯
+    function startGame() {
+        // 重置所有狀態
+        isGamePlaying = true;
+        flippedCards = [];
+        matchedCount = 0;
+        secondsElapsed = 0;
+        document.getElementById('timer-display').innerText = secondsElapsed;
+        
+        // 隱藏開始按鈕
+        document.getElementById('start-btn').style.display = 'none';
+
+        // 解除卡片鎖定
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(card => {
+            card.classList.remove('disabled', 'flipped', 'matched');
+            card.textContent = ''; // 清除文字
+        });
+
+        // 重新洗牌
+        initBoard();
+        
+        // 確保新洗好的牌可以點擊
+        document.querySelectorAll('.card').forEach(card => card.classList.remove('disabled'));
+
+        // 啟動計時器 (每 1000 毫秒 = 1 秒執行一次)
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            secondsElapsed++;
+            document.getElementById('timer-display').innerText = secondsElapsed;
+        }, 1000);
+    }
+
+    // 3. 翻牌邏輯
+    function flipCard(card) {
+        // 如果遊戲還沒開始，或是點擊的牌已經翻開了，就不做任何事
+        if (!isGamePlaying || card.classList.contains('flipped') || card.classList.contains('matched')) {
+            return;
+        }
+
+        // 限制最多只能翻兩張牌
+        if (flippedCards.length < 2) {
+            card.classList.add('flipped');
+            card.textContent = card.dataset.emoji;
+            flippedCards.push(card);
+
+            // 如果翻了兩張，準備檢查是否配對
+            if (flippedCards.length === 2) {
+                setTimeout(checkMatch, 800); // 停頓 0.8 秒讓玩家看清楚
+            }
+        }
+    }
+
+    // 4. 檢查配對邏輯
+    function checkMatch() {
+        const [card1, card2] = flippedCards;
+        
+        if (card1.dataset.emoji === card2.dataset.emoji) {
+            // 配對成功
+            card1.classList.add('matched');
+            card2.classList.add('matched');
+            matchedCount += 2;
+            
+            // 判斷是否全部完成
+            if (matchedCount === emojis.length) {
+                gameWon();
+            }
+        } else {
+            // 配對失敗，蓋回去
+            card1.classList.remove('flipped');
+            card1.textContent = '';
+            card2.classList.remove('flipped');
+            card2.textContent = '';
+        }
+        // 清空暫存列，準備迎接下一次翻牌
+        flippedCards = [];
+    }
+
+    // 5. 遊戲勝利邏輯
+    function gameWon() {
+        isGamePlaying = false;
+        clearInterval(timerInterval); // 停止計時
+        
+        // 延遲一點點跳出恭喜視窗，才不會太突兀
+        setTimeout(() => {
+            alert(`🎉 恭喜完成！\n總共花了 ${secondsElapsed} 秒。大腦運作得不錯喔！`);
+            
+            // 恢復開始按鈕 (改字變成 "再玩一次")
+            const startBtn = document.getElementById('start-btn');
+            startBtn.innerText = '再玩一次';
+            startBtn.style.display = 'inline-block';
+        }, 300);
+    }
+
+    // 網頁載入時先初始化版面
+    initBoard();
+</script>
+{% endblock %}

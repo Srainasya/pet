@@ -266,6 +266,13 @@ def game_menu():
             "desc": "發揮想像力，看看誰在說謊！",
             "icon": "🎭",
             "route": "patient.game_liar_king" # 這要對應到下方的函數名稱
+        },
+        {
+            "id": "memory_game",
+            "title": "記憶翻牌",
+            "desc": "鍛鍊大腦，找出成對的卡片吧！",
+            "icon": "🃏",
+            "route": "patient.game_memory"
         }
     ]
     # 關鍵：必須把 available_games 傳給名為 games 的變數
@@ -275,6 +282,10 @@ def game_menu():
 @login_required
 def game_liar_king():
     return render_template("game_liar_king.html")
+@bp.get("/game/memory")
+@login_required
+def game_memory():
+    return render_template("game_memory.html")
 
 # ========== Store / Pet ==========
 @bp.get("/pet")
