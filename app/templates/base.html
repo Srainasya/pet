@@ -4,10 +4,46 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}Farm{% endblock %}</title>
+  
+  <!-- 全域返回按鈕的 CSS 樣式 -->
+  <style>
+    .global-back-btn {
+        position: fixed;       /* 固定在畫面上 */
+        top: 20px;             /* 距離上方 20px */
+        left: 20px;            /* 距離左方 20px */
+        z-index: 9999;         /* 確保浮在最上層 */
+        padding: 8px 16px;
+        background-color: #ffffff;
+        color: #333333;
+        border: 2px solid #e0e0e0;
+        border-radius: 20px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: all 0.2s ease;
+    }
+
+    .global-back-btn:hover {
+        background-color: #f0f0f0;
+        transform: translateY(-2px); 
+        box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+    }
+  </style>
+
   {% block head %}{% endblock %}
 </head>
 <body>
+
+  <!-- 全域返回按鈕 (農場首頁不顯示) -->
+  {% if request.endpoint != 'patient.farm' %}
+  <button onclick="window.history.back()" class="global-back-btn">
+      ⬅ 返回
+  </button>
+  {% endif %}
+
   {% block body %}{% endblock %}
+  
   <script src="/static/app.js"></script>
   {% block scripts %}{% endblock %}
 </body>
