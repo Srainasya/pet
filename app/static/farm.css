@@ -504,33 +504,49 @@ body{
   color: #777;
 }
 
-/* ================= 登出按鈕 ================= */
+/* ================= HUD 右側容器 ================= */
+.hud-right {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* 🌟 控制兩個膠囊之間的間距 */
+}
+
+/* ================= 統一的膠囊風格 (nav-item) ================= */
 .hud .nav-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 6px 14px; /* 稍微縮小高度讓它精緻一點 */
   border-radius: 999px;
-  background-color: #ff4d4d; /* 紅色背景 */
+  font-weight: bold;
+  font-size: 14px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255,255,255,0.2);
+  white-space: nowrap; /* 避免文字斷行 */
+}
+
+/* 拼圖膠囊：設定為黃/橘色系 */
+.hud .puzzle-chip {
+  background-color: #ffcc00; /* 溫暖的黃色 */
+  color: #5c4000; /* 深褐色文字閱讀較舒適 */
+  cursor: default; /* 拼圖不是按鈕，所以游標設為一般 */
+}
+
+/* 登出按鈕：維持紅色系 */
+.hud .logout-btn {
+  background-color: #ff4d4d;
   color: white;
   text-decoration: none;
-  font-weight: bold;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.15);
-  transition: all 0.2s ease;
-  border: 1px solid rgba(0,0,0,0.1);
 }
 
-.hud .nav-item:hover {
+.hud .logout-btn:hover {
   background-color: #cc0000;
   transform: translateY(-2px);
-  box-shadow: 0 6px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 6px 10px rgba(255, 77, 77, 0.3);
 }
 
-/* 確保圖示和文字水平對齊 */
+/* 圖示微調 */
 .hud .nav-item .icon {
-  font-size: 18px;
-}
-
-.hud .nav-item span {
-  font-size: 15px;
+  font-size: 16px;
 }

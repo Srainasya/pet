@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Farm Home{% endblock %}
+{% block back_btn %}{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="/static/farm.css">
@@ -8,7 +9,7 @@
 {% block body %}
 <div class="scene">
 
-  <!-- ================= HUD ================= -->
+<!-- ================= HUD ================= -->
   <div class="hud">
     <div class="hud-left">
       <div class="bar">
@@ -17,12 +18,21 @@
       <div class="hud-text" id="hudText">今日進度：0/4</div>
     </div>
 
-    <a href="{{ url_for('auth.logout') }}" class="nav-item">
-      <div class="icon">🚪</div>
-      <span>登出</span>
-    </a>
+    <div class="hud-right">
+      <!-- 拼圖計數器：套用與登出按鈕類似的結構，但顏色改為橘黃色區分 -->
+      <div class="nav-item puzzle-chip">
+        <span class="icon">🧩</span>
+        <span>拼圖：<span id="petPieces">0</span></span>
+      </div>
+
+      <!-- 登出按鈕 -->
+      <a href="/auth/logout" class="nav-item logout-btn">
+        <span class="icon">🚪</span>
+        <span>登出</span>
+      </a>
+    </div>
   </div>
-  
+
   {% if group %}
   <div class="family-invite-card">
     <div class="invite-title">家庭邀請碼</div>
@@ -74,16 +84,16 @@
       <span class="txt">相簿</span>
     </a>
 
-    <a class="dock-item" href="/patient/calendar">
-      <span class="ico"></span>
-      <span class="txt">日曆</span>
-    </a>
+      <a class="dock-item" href="/patient/calendar">
+        <span class="ico"></span>
+        <span class="txt">日曆</span>
+      </a>
 
-    <a class="dock-item" href="{{ url_for('patient.game_menu') }}">
-      <span class="ico"></span>
-      <span class="txt">遊戲</span>
-    </a>
-      
+      <a class="dock-item" href="/patient/games">
+        <span class="ico"></span>
+        <span class="txt">遊戲</span>
+      </a>
+
   </div>
 
 

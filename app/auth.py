@@ -27,8 +27,7 @@ def setup_oauth():
 def login():
     # 直接走 Google
     redirect_uri = current_app.config.get("OAUTH_REDIRECT_URL") or url_for("auth.google_callback", _external=True)
-    # 🌟 新增 prompt="select_account"，強制要求選擇帳號，不要自動登入
-    return google.authorize_redirect(redirect_uri, prompt="select_account")
+    return google.authorize_redirect(redirect_uri)
 
 @bp.get("/google/callback")
 def google_callback():
@@ -60,10 +59,13 @@ def google_callback():
     if not user.onboarding_done:
         return redirect(url_for("onboarding.start"))
 
-    # ✅ 不分角色，一律進入農場主頁
-    return redirect(url_for("patient.farm"))
+    # ✅ onboarding 完成後：不分角色，一律進農場
+    return redirect(url_for("patient.farm"))  # 這裡改成你的「農場頁」endpoint
 
 @bp.get("/logout")
 def logout():
     logout_user()
-    return redirect("/")
+    session.clear()
+    response = redirect("/auth/login")
+    response.delete_cookie("session")
+    return response

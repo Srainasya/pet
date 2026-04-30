@@ -8,3 +8,5 @@ __pycache__/
 
 # 忽略本地端開發用的資料庫檔案
 instance/*.db
+
+test/
