@@ -4,6 +4,11 @@
 <div class="game-container" style="padding: 20px; text-align: center;">
     <h2>🃏 記憶翻牌挑戰</h2>
     
+    <!-- 🌟 顯示目前的 Google 帳號資訊 -->
+    <div style="margin-bottom: 10px; font-size: 14px; color: #666;">
+        🎮 玩家：<strong>{{ current_user.name }}</strong> (已連結 Google)
+    </div>
+    
     <!-- 計時器與狀態顯示區 -->
     <div style="font-size: 20px; font-weight: bold; margin: 15px 0; color: #333;">
         ⏱️ 經過時間：<span id="timer-display" style="color: #d63031;">0</span> 秒
@@ -20,7 +25,28 @@
     <div id="game-board" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 400px; margin: 0 auto;">
         <!-- 卡片會由 JS 動態產生 -->
     </div>
-
+    <!-- ================= 歷史最佳紀錄區塊 ================= -->
+    <div style="margin-top: 30px; max-width: 400px; margin-left: auto; margin-right: auto; background: #f8f9fa; padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: left;">
+        <h3 style="margin-top: 0; margin-bottom: 15px; color: #333; font-size: 18px; border-bottom: 2px solid #ddd; padding-bottom: 8px;">
+            🏆 我的最佳紀錄
+        </h3>
+        
+        {% if records %}
+            <ul style="list-style: none; padding: 0; margin: 0;">
+            {% for r in records %}
+                <li style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #eee;">
+                    <!-- 顯示日期 (例：2026-05-01) -->
+                    <span style="color: #888; font-size: 14px;">{{ r.completed_at.strftime('%Y-%m-%d') }}</span>
+                    <!-- 顯示秒數 -->
+                    <strong style="color: #d63031; font-size: 16px;">{{ r.score }} 秒</strong>
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p style="color: #888; font-size: 14px; margin: 0; text-align: center;">目前還沒有紀錄喔，趕快玩一場吧！</p>
+        {% endif %}
+    </div>
+    <!-- =================================================== -->
     <br><br>
     <a href="{{ url_for('patient.game_menu') }}" style="color: #666; text-decoration: none; border-bottom: 1px solid #666;">⬅ 返回遊戲大廳</a>
 </div>
@@ -166,15 +192,23 @@
     }
 
     // 5. 遊戲勝利邏輯
-    function gameWon() {
+    async function gameWon() {
         isGamePlaying = false;
-        clearInterval(timerInterval); // 停止計時
+        clearInterval(timerInterval); 
         
-        // 延遲一點點跳出恭喜視窗，才不會太突兀
+        try {
+            // 🌟 關鍵修正：網址前面要加上 /patient
+            await fetch('/patient/api/game/save-memory-result', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ seconds: secondsElapsed })
+            });
+        } catch (e) {
+            console.error("儲存失敗", e);
+        }
+
         setTimeout(() => {
-            alert(`🎉 恭喜完成！\n總共花了 ${secondsElapsed} 秒。大腦運作得不錯喔！`);
-            
-            // 恢復開始按鈕 (改字變成 "再玩一次")
+            alert(`🎉 恭喜完成！\n總共花了 ${secondsElapsed} 秒。成績已紀錄在您的帳號中！`);
             const startBtn = document.getElementById('start-btn');
             startBtn.innerText = '再玩一次';
             startBtn.style.display = 'inline-block';

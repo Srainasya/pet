@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash
+from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from .extensions import db
@@ -8,7 +8,7 @@ import calendar
 from datetime import date , datetime
 from .models import (
     GroupMember, Photo, StoreItem, UserStoreItem,
-    DailyRecord, MoodEntry, QAEntry, DailyTask, UserDailyProgress, Group, User
+    DailyRecord, MoodEntry, QAEntry, DailyTask, UserDailyProgress, Group, User, GameRecord
 )
 bp = Blueprint("patient", __name__, url_prefix="/patient")
 
@@ -282,10 +282,33 @@ def game_menu():
 @login_required
 def game_liar_king():
     return render_template("game_liar_king.html")
+
 @bp.get("/game/memory")
 @login_required
 def game_memory():
-    return render_template("game_memory.html")
+    # 撈取目前使用者的記憶翻牌紀錄，按秒數(score)由小到大排序，取前 5 名最佳成績
+    best_records = GameRecord.query.filter_by(
+        user_id=current_user.id,
+        game_type="memory"
+    ).order_by(GameRecord.score.asc()).limit(5).all()
+
+    # 將撈到的 records 傳給前端網頁
+    return render_template("game_memory.html", records=best_records)
+
+# --- 從這裡開始替換 ---
+@bp.route("/api/game/save-memory-result", methods=["POST"])
+@login_required
+def save_game_result():
+    data = request.json
+    seconds = data.get("seconds")
+    
+    # 真正建立一筆新紀錄並存入資料庫
+    new_record = GameRecord(user_id=current_user.id, score=seconds, game_type="memory")
+    db.session.add(new_record)
+    db.session.commit()
+    
+    return jsonify({"status": "success", "message": "成績已同步至 Google 帳號"})
+# --- 到這裡結束 ---
 
 # ========== Store / Pet ==========
 @bp.get("/pet")

@@ -339,3 +339,16 @@ class QAEntry(db.Model):
     )
 
     user = db.relationship("User", foreign_keys=[user_id])
+
+class GameRecord(db.Model):
+    __tablename__ = 'game_records'
+
+    id = db.Column(db.Integer, primary_key=True)
+    # 綁定 Google 帳號的使用者 ID
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False) 
+    game_type = db.Column(db.String(50), default='memory_match')
+    score = db.Column(db.Integer)  # 這裡存秒數
+    completed_at = db.Column(db.DateTime, default=dt.datetime.utcnow, nullable=False)
+
+    # 建立關聯：這行必須縮進在 class 裡面
+    user = db.relationship('User', backref=db.backref('game_records', lazy=True))
