@@ -428,3 +428,7 @@ def equip_store_item(item_id):
 
     flash(f"已使用：{store_item.name} ✨")
     return redirect(url_for("patient.patient_pet"))
+@bp.get("/stats")
+@login_required
+def stats():
+    return render_template("patient_status.html")

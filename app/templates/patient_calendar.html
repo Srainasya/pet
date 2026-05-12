@@ -37,9 +37,9 @@
         <a
           href="{{ url_for('patient.patient_calendar_day', date_str=day.isoformat()) }}"
           class="day-cell
-                 {% if not in_month %}other-month{% endif %}
-                 {% if has_record %}has-record{% endif %}
-                 {% if day == today %}today{% endif %}">
+                {% if not in_month %}other-month{% endif %}
+                {% if has_record %}has-record{% endif %}
+                {% if day == today %}today{% endif %}">
           <div class="day-number">{{ day.day }}</div>
 
           {% if has_record %}

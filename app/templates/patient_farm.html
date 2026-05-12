@@ -10,28 +10,26 @@
 <div class="scene">
 
 <!-- ================= HUD ================= -->
-  <div class="hud">
-    <div class="hud-left">
+  <!-- ================= HUD ================= -->
+<div class="hud">
+  <div class="hud-card">
+    <div class="hud-row-progress">
+      <span class="hud-label">今日進度</span>
       <div class="bar">
         <div class="bar-fill" id="progressFill" style="width:0%"></div>
       </div>
-      <div class="hud-text" id="hudText">今日進度：0/4</div>
+      <span class="hud-count" id="hudText">0/4</span>
     </div>
-
-    <div class="hud-right">
-      <!-- 拼圖計數器：套用與登出按鈕類似的結構，但顏色改為橘黃色區分 -->
-      <div class="nav-item puzzle-chip">
-        <span class="icon">🧩</span>
-        <span>拼圖：<span id="petPieces">0</span></span>
-      </div>
-
-      <!-- 登出按鈕 -->
-      <a href="/auth/logout" class="nav-item logout-btn">
-        <span class="icon">🚪</span>
-        <span>登出</span>
-      </a>
+    <div class="hud-row-chips">
+      <span class="chip chip-fire">🔥 連續 <span id="streakDays">0</span> 天</span>
+      <span class="chip chip-green">📅 陪伴 <span id="companionDays">0</span> 天</span>
     </div>
   </div>
+  <div class="hud-right">
+    <div class="chip">拼圖：<span id="petPieces">0</span></div>
+    <a href="/auth/logout" class="chip logout-btn">登出</a>
+  </div>
+</div>
 
   {% if group %}
   <div class="family-invite-card">
@@ -73,7 +71,10 @@
       <span class="ico"></span>
       <span class="txt">任務</span>
     </a>
-
+    <a class="dock-item" href="/patient/games">
+      <span class="ico"></span>
+      <span class="txt">遊戲</span>
+    </a>
     <a class="dock-item" href="/patient/qa">
       <span class="ico"></span>
       <span class="txt">問答</span>
@@ -84,18 +85,19 @@
       <span class="txt">相簿</span>
     </a>
 
-      <a class="dock-item" href="/patient/calendar">
-        <span class="ico"></span>
-        <span class="txt">日曆</span>
-      </a>
+    <a class="dock-item" href="/patient/calendar">
+      <span class="ico"></span>
+      <span class="txt">日曆</span>
+    </a>
 
-      <a class="dock-item" href="/patient/games">
-        <span class="ico"></span>
-        <span class="txt">遊戲</span>
-      </a>
+    
 
-  </div>
+    <a class="dock-item" href="/patient/stats">
+      <span class="ico"></span>
+      <span class="txt">分析</span>
+    </a>
 
+</div>
 
   <!-- ================= FOCUS ================= -->
   {% if focus %}
@@ -179,7 +181,9 @@ createTipBar();
       const s = await res.json();
 
       const done = [s.photo_done, s.mood_done, s.qa_done, s.task_done].filter(Boolean).length;
-      hudText.textContent = `今日進度：${done}/4`;
+     hudText.textContent = `${done}/4`;  // 拿掉「今日進度：」前綴，已移到 HTML
+     document.getElementById("streakDays").textContent    = s.streak_days    ?? 0;
+     document.getElementById("companionDays").textContent = s.companion_days ?? 0;
       petPieces.textContent = s.pet_pieces_unlocked ?? 0;
       progressFill.style.width = `${(done / 4) * 100}%`;
 

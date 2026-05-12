@@ -1,51 +1,57 @@
 /* ===========================
-   Today QA Page UI (gentle A/B)
-   - warm cream + soft blue
-   - high readability, big touch targets
-   - styles override inline via !important where needed
+  Today QA Page UI (gentle A/B)
+  - warm cream + soft blue
+  - high readability, big touch targets
+  - styles override inline via !important where needed
    =========================== */
 
-:root{
-  --bg1:#fff7ef;
-  --bg2:#eef5ff;
-  --card:rgba(255,255,255,.92);
-  --stroke:rgba(31,42,58,.10);
-  --text:#1f2a3a;
-  --muted:rgba(31,42,58,.65);
-  --muted2:rgba(31,42,58,.50);
+:root {
+  --bg1: #fff7ef;
+  --bg2: #eef5ff;
+  --card: rgba(255, 255, 255, .92);
+  --stroke: rgba(31, 42, 58, .10);
+  --text: #1f2a3a;
+  --muted: rgba(31, 42, 58, .65);
+  --muted2: rgba(31, 42, 58, .50);
 
-  --primary:#3b82f6;
-  --primary2:#2563eb;
-  --primarySoft: rgba(59,130,246,.10);
+  --primary: #3b82f6;
+  --primary2: #2563eb;
+  --primarySoft: rgba(59, 130, 246, .10);
 
-  --shadow:0 18px 45px rgba(30,41,59,.12);
-  --shadow2:0 10px 22px rgba(30,41,59,.08);
+  --shadow: 0 18px 45px rgba(30, 41, 59, .12);
+  --shadow2: 0 10px 22px rgba(30, 41, 59, .08);
 
-  --r-xl:26px;
-  --r-lg:20px;
-  --r-md:14px;
+  --r-xl: 26px;
+  --r-lg: 20px;
+  --r-md: 14px;
 }
 
-body{
+body {
   background:
-    radial-gradient(1000px 520px at 12% 10%, rgba(255,214,170,.55), transparent 60%),
-    radial-gradient(900px 520px at 92% 15%, rgba(145,198,255,.55), transparent 62%),
+    radial-gradient(1000px 520px at 12% 10%, rgba(255, 214, 170, .55), transparent 60%),
+    radial-gradient(900px 520px at 92% 15%, rgba(145, 198, 255, .55), transparent 62%),
     linear-gradient(180deg, var(--bg1), var(--bg2));
+  
+  /* --- 加上這三行魔法 --- */
+  min-height: 100vh;              /* 確保背景最少有整個螢幕高 */
+  background-attachment: fixed;   /* 把背景釘在螢幕上，滑動時背景不動 */
+  background-repeat: no-repeat;   /* 絕對不要重複拼貼 */
+  margin: 0;                      /* 順手清掉預設邊距，避免跑版 */
 }
 
 /* Outer wrapper (your inline div) */
 div[style*="max-width: 720px"],
-div[style*="max-width:720px"]{
+div[style*="max-width:720px"] {
   max-width: 920px !important;
   margin: 0 auto !important;
   padding: 28px 16px 56px !important;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC",
-               "Microsoft JhengHei","PingFang TC", sans-serif !important;
+    "Microsoft JhengHei", "PingFang TC", sans-serif !important;
   color: var(--text);
 }
 
 /* Title */
-h1{
+h1 {
   margin: 6px 0 14px !important;
   font-size: 34px !important;
   letter-spacing: -0.03em;
@@ -54,7 +60,9 @@ h1{
 }
 
 /* QA main card */
-#qaArea{
+#qaArea {
+  box-sizing: border-box !important; /* 🌟 加上這行，確保 padding 不會撐破卡片 */
+  background: var(--card) !important;
   background: var(--card) !important;
   border: 1px solid var(--stroke) !important;
   border-radius: var(--r-xl) !important;
@@ -66,29 +74,30 @@ h1{
 }
 
 /* Decorative blobs */
-#qaArea::before{
-  content:"";
-  position:absolute;
+#qaArea::before {
+  content: "";
+  position: absolute;
   width: 280px;
   height: 280px;
   right: -120px;
   top: -120px;
-  background: radial-gradient(circle at 30% 30%, rgba(59,130,246,0.20), transparent 60%);
+  background: radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.20), transparent 60%);
   transform: rotate(18deg);
-  pointer-events:none;
+  pointer-events: none;
 }
-#qaArea::after{
-  content:"";
-  position:absolute;
+
+#qaArea::after {
+  content: "";
+  position: absolute;
   width: 320px;
   height: 320px;
   left: -150px;
   bottom: -170px;
   background: radial-gradient(circle at 50% 40%, rgba(255, 204, 153, 0.25), transparent 65%);
-  pointer-events:none;
+  pointer-events: none;
 }
 
-#qText{
+#qText {
   font-size: 20px !important;
   font-weight: 950 !important;
   letter-spacing: -0.01em;
@@ -96,10 +105,13 @@ h1{
 }
 
 /* Textarea */
-#answer{
+#answer {
+  box-sizing: border-box !important; /* 🌟 加上這行，限制輸入框乖乖待在 100% 裡面 */
   width: 100% !important;
-  border: 1px solid rgba(31,42,58,.14) !important;
-  background: rgba(255,255,255,.94) !important;
+  border: 1px solid rgba(31, 42, 58, .14) !important;
+  width: 100% !important;
+  border: 1px solid rgba(31, 42, 58, .14) !important;
+  background: rgba(255, 255, 255, .94) !important;
   border-radius: 18px !important;
   padding: 14px !important;
   margin-top: 12px !important;
@@ -111,24 +123,24 @@ h1{
   outline: none;
 }
 
-#answer::placeholder{
-  color: rgba(31,42,58,.45);
+#answer::placeholder {
+  color: rgba(31, 42, 58, .45);
   font-weight: 700;
 }
 
-#answer:focus{
-  border-color: rgba(59,130,246,.45) !important;
-  box-shadow: 0 0 0 6px rgba(59,130,246,.14) !important;
+#answer:focus {
+  border-color: rgba(59, 130, 246, .45) !important;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, .14) !important;
 }
 
 /* Buttons row */
-#qaArea > div[style*="display:flex"]{
+#qaArea>div[style*="display:flex"] {
   gap: 10px !important;
   align-items: center !important;
 }
 
 /* Primary button (send) */
-#sendBtn{
+#sendBtn {
   border: 0 !important;
   border-radius: 18px !important;
   padding: 12px 18px !important;
@@ -138,64 +150,71 @@ h1{
   color: #fff !important;
   cursor: pointer;
   background: linear-gradient(180deg, var(--primary), var(--primary2)) !important;
-  box-shadow: 0 14px 28px rgba(37,99,235,.22) !important;
+  box-shadow: 0 14px 28px rgba(37, 99, 235, .22) !important;
   transition: transform .08s ease, filter .2s ease, box-shadow .2s ease;
 }
 
-#sendBtn:hover{
+#sendBtn:hover {
   filter: brightness(1.03);
-  box-shadow: 0 18px 34px rgba(37,99,235,.26) !important;
+  box-shadow: 0 18px 34px rgba(37, 99, 235, .26) !important;
 }
-#sendBtn:active{ transform: translateY(1px); }
 
-#sendBtn:disabled{
+#sendBtn:active {
+  transform: translateY(1px);
+}
+
+#sendBtn:disabled {
   cursor: not-allowed;
-  background: linear-gradient(180deg, rgba(148,163,184,1), rgba(100,116,139,1)) !important;
+  background: linear-gradient(180deg, rgba(148, 163, 184, 1), rgba(100, 116, 139, 1)) !important;
   box-shadow: none !important;
 }
 
 /* Secondary button (mood open) */
-#moodOpenBtn{
-  border: 1px solid rgba(59,130,246,.18) !important;
+#moodOpenBtn {
+  border: 1px solid rgba(59, 130, 246, .18) !important;
   border-radius: 18px !important;
   padding: 12px 18px !important;
   min-height: 48px;
   font-size: 16px !important;
   font-weight: 950 !important;
-  color: rgba(31,42,58,.88) !important;
+  color: rgba(31, 42, 58, .88) !important;
   cursor: pointer;
-  background: rgba(255,255,255,.78) !important;
+  background: rgba(255, 255, 255, .78) !important;
   box-shadow: var(--shadow2) !important;
   transition: transform .08s ease, background .2s ease, box-shadow .2s ease;
 }
 
-#moodOpenBtn:hover{
-  background: rgba(59,130,246,.08) !important;
+#moodOpenBtn:hover {
+  background: rgba(59, 130, 246, .08) !important;
 }
-#moodOpenBtn:active{ transform: translateY(1px); }
+
+#moodOpenBtn:active {
+  transform: translateY(1px);
+}
 
 /* Status pills */
-#qaStatus, #moodLabel{
+#qaStatus,
+#moodLabel {
   display: inline-flex;
   align-items: center;
   min-height: 40px;
   padding: 10px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(31,42,58,.10);
-  background: rgba(255,255,255,.70);
+  border: 1px solid rgba(31, 42, 58, .10);
+  background: rgba(255, 255, 255, .70);
   box-shadow: var(--shadow2);
   font-size: 13px;
   font-weight: 900 !important;
-  color: rgba(31,42,58,.72) !important;
+  color: rgba(31, 42, 58, .72) !important;
 }
 
 /* Wall section title (your inline "今日大家的回答") */
-div[style*="今日大家的回答"]{
+div[style*="今日大家的回答"] {
   font-weight: 950 !important;
 }
 
 /* Wall container */
-#wall{
+#wall {
   margin-top: 12px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -203,94 +222,107 @@ div[style*="今日大家的回答"]{
 }
 
 /* When empty wall text is inserted with inline style, make it look nicer */
-#wall > div[style*="color:#777"]{
+#wall>div[style*="color:#777"] {
   grid-column: 1 / -1;
   padding: 14px;
   border-radius: var(--r-lg);
-  border: 1px solid rgba(59,130,246,.14);
-  background: rgba(59,130,246,.08);
-  color: rgba(31,42,58,.72) !important;
+  border: 1px solid rgba(59, 130, 246, .14);
+  background: rgba(59, 130, 246, .08);
+  color: rgba(31, 42, 58, .72) !important;
   font-weight: 850;
 }
 
 /* Each answer box (created in JS with inline styles) */
-#wall > div{
-  background: rgba(255,255,255,.90) !important;
-  border: 1px solid rgba(31,42,58,.10) !important;
+#wall>div {
+  background: rgba(255, 255, 255, .90) !important;
+  border: 1px solid rgba(31, 42, 58, .10) !important;
   border-radius: var(--r-lg) !important;
   box-shadow: var(--shadow2);
 }
 
 /* Avatar placeholder */
-#wall img{
-  box-shadow: 0 8px 18px rgba(30,41,59,.12);
+#wall img {
+  box-shadow: 0 8px 18px rgba(30, 41, 59, .12);
 }
 
 /* Make answer text comfortable */
-#wall div[style*="white-space:pre-wrap"]{
+#wall div[style*="white-space:pre-wrap"] {
   line-height: 1.55;
 }
 
 /* Mood modal */
-#moodModal{
+#moodModal {
   backdrop-filter: blur(6px);
 }
 
 /* Modal panel (your inner white div) */
-#moodModal > div{
+#moodModal>div {
   border-radius: 22px !important;
-  border: 1px solid rgba(255,255,255,.35);
-  background: rgba(255,255,255,.96) !important;
-  box-shadow: 0 30px 80px rgba(0,0,0,.35);
+  border: 1px solid rgba(255, 255, 255, .35);
+  background: rgba(255, 255, 255, .96) !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .35);
 }
 
 /* Modal title */
-#moodModal > div > div:first-child{
+#moodModal>div>div:first-child {
   letter-spacing: -0.02em;
 }
 
 /* Mood buttons */
-.moodBtn{
-  border: 1px solid rgba(31,42,58,.10) !important;
-  background: rgba(255,255,255,.88) !important;
+.moodBtn {
+  border: 1px solid rgba(31, 42, 58, .10) !important;
+  background: rgba(255, 255, 255, .88) !important;
   box-shadow: var(--shadow2);
   font-weight: 950;
   cursor: pointer;
   transition: transform .08s ease, background .2s ease, box-shadow .2s ease;
 }
 
-.moodBtn:hover{
-  background: rgba(59,130,246,.08) !important;
+.moodBtn:hover {
+  background: rgba(59, 130, 246, .08) !important;
 }
-.moodBtn:active{
+
+.moodBtn:active {
   transform: translateY(1px);
 }
 
 /* Hint inside modal */
-#moodModal div[style*="※ 需要先選擇心情"]{
+#moodModal div[style*="※ 需要先選擇心情"] {
   padding: 12px 14px;
   border-radius: var(--r-lg);
-  border: 1px solid rgba(59,130,246,.14);
-  background: rgba(59,130,246,.08);
+  border: 1px solid rgba(59, 130, 246, .14);
+  background: rgba(59, 130, 246, .08);
 }
 
 /* Responsive */
-@media (max-width: 900px){
-  #wall{ grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  #wall {
+    grid-template-columns: 1fr;
+  }
 }
 
-@media (max-width: 520px){
-  h1{ font-size: 30px !important; }
-  #qText{ font-size: 19px !important; }
-  #qaArea > div[style*="display:flex"]{
+@media (max-width: 520px) {
+  h1 {
+    font-size: 30px !important;
+  }
+
+  #qText {
+    font-size: 19px !important;
+  }
+
+  #qaArea>div[style*="display:flex"] {
     flex-direction: column;
     align-items: stretch !important;
   }
-  #sendBtn, #moodOpenBtn{
+
+  #sendBtn,
+  #moodOpenBtn {
     width: 100%;
     justify-content: center;
   }
-  #qaStatus, #moodLabel{
+
+  #qaStatus,
+  #moodLabel {
     width: 100%;
     justify-content: center;
   }

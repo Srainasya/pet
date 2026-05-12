@@ -15,7 +15,6 @@
   <!-- 照片 -->
   <div class="detail-section">
     <h2>照片</h2>
-
     {% if photos %}
       <div class="photo-grid">
         {% for photo, user in photos %}
@@ -24,25 +23,25 @@
               {% if user.avatar_url %}
                 <img src="{{ user.avatar_url }}" alt="{{ user.name or 'user' }}" class="avatar">
               {% else %}
-                <div class="avatar avatar-fallback">
-                  {{ (user.name or user.email or 'U')[0] }}
-                </div>
+                <div class="avatar avatar-fallback">{{ (user.name or user.email or 'U')[0] }}</div>
               {% endif %}
               <div class="record-user-meta">
                 <div class="record-user-name">{{ user.name or user.email or ('User #' ~ user.id) }}</div>
                 <div class="record-user-sub">上傳照片</div>
               </div>
             </div>
-
             <img
-            src="{{ url_for('static', filename=photo.stored_path) }}"
-            alt="{{ photo.original_name or '照片' }}"
-            class="record-photo-img previewable-photo"
-            data-fullsrc="{{ url_for('static', filename=photo.stored_path) }}"
-            data-filename="{{ photo.original_name or '照片' }}"
+              src="{{ url_for('static', filename=photo.stored_path) }}"
+              alt="{{ photo.original_name or '照片' }}"
+              class="record-photo-img previewable-photo"
+              data-fullsrc="{{ url_for('static', filename=photo.stored_path) }}"
+              data-filename="{{ photo.original_name or '照片' }}"
             >
             <div class="meta">
               {{ photo.original_name or '照片' }}
+              <span style="color:rgba(31,42,58,.50); font-size:12px; margin-left:8px;">
+                {{ photo.created_at | tw }}
+              </span>
             </div>
           </div>
         {% endfor %}
@@ -55,7 +54,6 @@
   <!-- 心情 -->
   <div class="detail-section">
     <h2>心情</h2>
-
     {% if moods %}
       <div class="record-list">
         {% for mood, user in moods %}
@@ -64,18 +62,18 @@
               {% if user.avatar_url %}
                 <img src="{{ user.avatar_url }}" alt="{{ user.name or 'user' }}" class="avatar">
               {% else %}
-                <div class="avatar avatar-fallback">
-                  {{ (user.name or user.email or 'U')[0] }}
-                </div>
+                <div class="avatar avatar-fallback">{{ (user.name or user.email or 'U')[0] }}</div>
               {% endif %}
               <div class="record-user-meta">
                 <div class="record-user-name">{{ user.name or user.email or ('User #' ~ user.id) }}</div>
                 <div class="record-user-sub">今日心情</div>
               </div>
             </div>
-
             <div class="record-body">
               {{ mood.mood }}
+              <span style="color:rgba(31,42,58,.50); font-size:12px; margin-left:8px;">
+                {{ mood.created_at | tw }}
+              </span>
             </div>
           </div>
         {% endfor %}
@@ -88,7 +86,6 @@
   <!-- 問答 -->
   <div class="detail-section">
     <h2>問答</h2>
-
     {% if qas %}
       <div class="record-list">
         {% for qa, user in qas %}
@@ -97,19 +94,19 @@
               {% if user.avatar_url %}
                 <img src="{{ user.avatar_url }}" alt="{{ user.name or 'user' }}" class="avatar">
               {% else %}
-                <div class="avatar avatar-fallback">
-                  {{ (user.name or user.email or 'U')[0] }}
-                </div>
+                <div class="avatar avatar-fallback">{{ (user.name or user.email or 'U')[0] }}</div>
               {% endif %}
               <div class="record-user-meta">
                 <div class="record-user-name">{{ user.name or user.email or ('User #' ~ user.id) }}</div>
                 <div class="record-user-sub">每日問答</div>
               </div>
             </div>
-
             <div class="qa-block">
               <div class="qa-line"><span class="qa-tag">Q</span>{{ qa.question }}</div>
               <div class="qa-line"><span class="qa-tag answer">A</span>{{ qa.answer }}</div>
+              <div style="color:rgba(31,42,58,.55); font-size:13px; margin-top:6px;">
+                <b>回答時間：</b>{{ qa.updated_at | tw }}
+              </div>
             </div>
           </div>
         {% endfor %}
@@ -122,7 +119,6 @@
   <!-- 任務 -->
   <div class="detail-section">
     <h2>任務</h2>
-
     {% if tasks %}
       <div class="record-list">
         {% for task, user in tasks %}
@@ -131,20 +127,23 @@
               {% if user.avatar_url %}
                 <img src="{{ user.avatar_url }}" alt="{{ user.name or 'user' }}" class="avatar">
               {% else %}
-                <div class="avatar avatar-fallback">
-                  {{ (user.name or user.email or 'U')[0] }}
-                </div>
+                <div class="avatar avatar-fallback">{{ (user.name or user.email or 'U')[0] }}</div>
               {% endif %}
               <div class="record-user-meta">
                 <div class="record-user-name">{{ user.name or user.email or ('User #' ~ user.id) }}</div>
                 <div class="record-user-sub">任務紀錄</div>
               </div>
             </div>
-
             <div class="record-body">
               <div class="status-row"><b>任務：</b>{{ task.task_text }}</div>
               <div class="status-row"><b>家屬完成：</b>{{ "是" if task.caregiver_done else "否" }}</div>
               <div class="status-row"><b>患者確認：</b>{{ "是" if task.patient_confirmed else "否" }}</div>
+              <div class="status-row" style="color:rgba(31,42,58,.55); font-size:13px;">
+                <b>家屬完成時間：</b>{{ task.caregiver_done_at | tw }}
+              </div>
+              <div class="status-row" style="color:rgba(31,42,58,.55); font-size:13px;">
+                <b>失智者確認時間：</b>{{ task.patient_confirmed_at | tw }}
+              </div>
             </div>
           </div>
         {% endfor %}
@@ -157,7 +156,6 @@
   <!-- 進度 / 寵物狀態 -->
   <div class="detail-section">
     <h2>進度 / 寵物狀態</h2>
-
     {% if progresses %}
       <div class="record-list">
         {% for progress, user in progresses %}
@@ -166,21 +164,21 @@
               {% if user.avatar_url %}
                 <img src="{{ user.avatar_url }}" alt="{{ user.name or 'user' }}" class="avatar">
               {% else %}
-                <div class="avatar avatar-fallback">
-                  {{ (user.name or user.email or 'U')[0] }}
-                </div>
+                <div class="avatar avatar-fallback">{{ (user.name or user.email or 'U')[0] }}</div>
               {% endif %}
               <div class="record-user-meta">
                 <div class="record-user-name">{{ user.name or user.email or ('User #' ~ user.id) }}</div>
                 <div class="record-user-sub">寵物進度</div>
               </div>
             </div>
-
             <div class="record-body">
               <div class="status-row"><b>任務完成：</b>{{ "是" if progress.task_done else "否" }}</div>
               <div class="status-row"><b>寵物 XP：</b>{{ progress.pet_xp }}</div>
               <div class="status-row"><b>寵物等級：</b>{{ progress.pet_level }}</div>
               <div class="status-row"><b>獎勵解鎖：</b>{{ "是" if progress.reward_unlocked else "否" }}</div>
+              <div class="status-row" style="color:rgba(31,42,58,.55); font-size:13px;">
+                <b>更新時間：</b>{{ progress.updated_at | tw }}
+              </div>
             </div>
           </div>
         {% endfor %}
@@ -214,7 +212,6 @@
     img.addEventListener("click", () => {
       const fullsrc = img.dataset.fullsrc || img.src;
       const filename = img.dataset.filename || "照片";
-
       previewImg.src = fullsrc;
       previewName.textContent = filename;
       backdrop.classList.add("show");
@@ -229,22 +226,14 @@
     document.body.classList.remove("modal-open");
   }
 
-  if (closeBtn) {
-    closeBtn.addEventListener("click", closePreview);
-  }
-
+  if (closeBtn) closeBtn.addEventListener("click", closePreview);
   if (backdrop) {
     backdrop.addEventListener("click", (e) => {
-      if (e.target === backdrop) {
-        closePreview();
-      }
+      if (e.target === backdrop) closePreview();
     });
   }
-
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && backdrop.classList.contains("show")) {
-      closePreview();
-    }
+    if (e.key === "Escape" && backdrop.classList.contains("show")) closePreview();
   });
 })();
 </script>

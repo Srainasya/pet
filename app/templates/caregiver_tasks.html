@@ -1,16 +1,11 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% extends "base.html" %}
+{% block title %}今日任務{% endblock %}
 
-<title>今日任務</title>
-
+{% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='task_today.css') }}">
-</head>
+{% endblock %}
 
-<body>
-
+{% block body %}
 <div class="task-page">
 
   <h1>今日任務</h1>
@@ -31,11 +26,39 @@
   </div>
 
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
   const taskText = document.getElementById("taskText");
   const doneBtn = document.getElementById("doneBtn");
   const statusEl = document.getElementById("status");
+
+  function formatTime(isoStr) {
+    if (!isoStr) return null;
+    const d = new Date(isoStr);
+    if (isNaN(d)) return null;
+
+    const abs = d.toLocaleString("zh-TW", {
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false
+    });
+    // DB 存的是台灣時間但沒有 timezone info，補回 +8
+    const twOffset = 8 * 60 * 60 * 1000;
+    const diff = Date.now() - (d.getTime() + twOffset);
+    const mins  = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days  = Math.floor(diff / 86400000);
+
+    let rel;
+    if (mins < 1)        rel = "剛剛";
+    else if (mins < 60)  rel = `${mins} 分鐘前`;
+    else if (hours < 24) rel = `${hours} 小時前`;
+    else if (days === 1) rel = "昨天";
+    else                 rel = `${days} 天前`;
+
+    return { rel, abs };
+  }
 
   async function gateRole() {
     const r = await fetch("/api/patient/today_status");
@@ -67,19 +90,27 @@
       return;
     }
 
-    taskText.textContent =
-      j.task_text || "今天尚未指派任務（請稍後再試）";
+    taskText.textContent = j.task_text || "今天尚未指派任務（請稍後再試）";
 
     if (j.completed) {
       doneBtn.disabled = true;
-      statusEl.textContent = "✅ 已完成（已被確認）";
-    } else if (j.caregiver_done && !j.patient_confirmed) {
-      doneBtn.disabled = true;
-      statusEl.textContent = "已送出，等待失智者確認…";
-    } else {
-      doneBtn.disabled = false;
-      statusEl.textContent = "";
-    }
+      const t1 = formatTime(j.caregiver_done_at);
+      const t2 = formatTime(j.patient_confirmed_at);
+      statusEl.innerHTML =
+    `✅ 已完成`+ (t1 ? ` <span style="color:#999;font-size:12px;" title="${t1.abs}">家屬完成 ${t1.rel}</span>` : "")
+    + (t2 ? ` <span style="color:#999;font-size:12px;" title="${t2.abs}">｜失智者確認 ${t2.rel}</span>` : "");
+
+      } else if (j.caregiver_done && !j.patient_confirmed) {
+        doneBtn.disabled = true;
+        const t1 = formatTime(j.caregiver_done_at);
+        statusEl.innerHTML =
+          `已送出，等待失智者確認…`
+          + (t1 ? ` <span style="color:#999;font-size:12px;" title="${t1.abs}">${t1.rel}</span>` : "");
+
+      } else {
+        doneBtn.disabled = false;
+        statusEl.textContent = "";
+      }
   }
 
   doneBtn.addEventListener("click", async () => {
@@ -87,8 +118,8 @@
     statusEl.textContent = "送出中…";
 
     const r = await fetch("/api/tasks/complete", {
-      method:"POST",
-      headers: {"Content-Type":"application/json"},
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify({})
     });
 
@@ -111,6 +142,4 @@
     setInterval(load, 10000);
   })();
 </script>
-
-</body>
-</html>
+{% endblock %}

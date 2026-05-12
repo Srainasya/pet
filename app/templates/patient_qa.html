@@ -3,6 +3,7 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='qa_today.css') }}?v=1">
 {% endblock %}
+
 {% block body %}
 <div style="font-family:system-ui; padding: 24px; max-width: 720px; margin: 0 auto;">
   <h1 style="font-size:34px;">今日問答</h1>
@@ -10,13 +11,15 @@
   <div id="qaArea" style="margin-top:18px; background:#f3f5f7; border-radius:18px; padding:18px;">
     <div id="qText" style="font-size:22px; font-weight:900;">Q：載入中…</div>
 
-    <textarea id="answer"
-      placeholder="寫下你的回答（送出後，同組家人也會看到）"
+    <textarea id="answer" placeholder="寫下你的回答（送出後，同組家人也會看到）"
       style="width:100%; height:140px; margin-top:12px; font-size:18px; border-radius:14px; padding:12px;"></textarea>
 
     <div style="display:flex; gap:10px; align-items:center; margin-top:12px; flex-wrap:wrap;">
       <button id="sendBtn" style="padding:12px 16px; font-size:18px;">送出 / 更新</button>
       <button id="moodOpenBtn" type="button" style="padding:12px 16px; font-size:18px;">更新心情</button>
+      <button id="shuffleBtn" type="button"
+        style="padding:12px 16px; font-size:18px; background:#e0e7ff; border:none; border-radius:12px; cursor:pointer;">換一題
+        🎲</button>
       <span id="qaStatus" style="color:#555; font-weight:700;"></span>
       <span id="moodLabel" style="color:#777; font-weight:700;"></span>
     </div>
@@ -28,21 +31,19 @@
   </div>
 </div>
 
-<!-- Mood Modal -->
 <div id="moodModal" style="
   position:fixed; inset:0; display:none;
   background:rgba(0,0,0,0.45); align-items:center; justify-content:center;
 ">
   <div style="background:white; width:min(520px, 92vw); border-radius:22px; padding:18px;">
     <div style="font-size:26px; font-weight:1000; margin-bottom:10px;">你今天心情如何？</div>
-
     <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:12px;">
-      <button class="moodBtn" data-mood="happy"  style="padding:18px; font-size:22px; border-radius:18px;">😀 開心</button>
-      <button class="moodBtn" data-mood="neutral" style="padding:18px; font-size:22px; border-radius:18px;">🙂 普通</button>
-      <button class="moodBtn" data-mood="sad"    style="padding:18px; font-size:22px; border-radius:18px;">😢 難過</button>
-      <button class="moodBtn" data-mood="angry"  style="padding:18px; font-size:22px; border-radius:18px;">😡 生氣</button>
+      <button class="moodBtn" data-mood="happy" style="padding:18px; font-size:22px; border-radius:18px;">😀 開心</button>
+      <button class="moodBtn" data-mood="neutral" style="padding:18px; font-size:22px; border-radius:18px;">🙂
+        普通</button>
+      <button class="moodBtn" data-mood="sad" style="padding:18px; font-size:22px; border-radius:18px;">😢 難過</button>
+      <button class="moodBtn" data-mood="angry" style="padding:18px; font-size:22px; border-radius:18px;">😡 生氣</button>
     </div>
-
     <div style="margin-top:12px; color:#555; font-weight:700;">
       ※ 需要先選擇心情，才能開始回答今天的問題（之後也可以隨時更新）
     </div>
@@ -52,126 +53,124 @@
 
 {% block scripts %}
 <script>
+  // ===== 1. 題庫定義 =====
+  const questionPool = [
+    "今天最讓你感動的一件事是什麼？",
+    "如果你可以回到過去的一個時刻，你會想做什麼？",
+    "最近有沒有聽到什麼好笑的事？分享一下吧！",
+    "推薦一道你最近覺得很好吃的料理。",
+    "今天遇到了什麼讓你想笑的瞬間？",
+    "最近有什麼想學但還沒開始的新技能？",
+    "哪一首歌最能代表你今天的心情？",
+    "如果明天突然放假，你最想去哪裡玩？",
+    "你今天最感謝的一個人是誰？",
+    "如果可以擁有一種超能力，你最想要哪一個？"
+  ];
+
   // ===== Elements =====
   const qText = document.getElementById("qText");
   const answerEl = document.getElementById("answer");
   const sendBtn = document.getElementById("sendBtn");
   const qaStatus = document.getElementById("qaStatus");
   const wall = document.getElementById("wall");
-
   const moodModal = document.getElementById("moodModal");
   const moodOpenBtn = document.getElementById("moodOpenBtn");
   const moodLabel = document.getElementById("moodLabel");
+  const shuffleBtn = document.getElementById("shuffleBtn");
 
   let currentQuestion = "";
 
   // ===== Helpers =====
-  function esc(s) {
-    return (s || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
+  function formatTime(isoStr) {
+    if (!isoStr) return null;
+    const d = new Date(isoStr);
+    if (isNaN(d)) return null;
+
+    const abs = d.toLocaleString("zh-TW", {
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false
+    });
+    // DB 存的是台灣時間但沒有 timezone info，補回 +8
+    const twOffset = 8 * 60 * 60 * 1000;
+    const diff = Date.now() - (d.getTime() + twOffset);
+    const mins = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    let rel;
+    if (mins < 1) rel = "剛剛";
+    else if (mins < 60) rel = `${mins} 分鐘前`;
+    else if (hours < 24) rel = `${hours} 小時前`;
+    else if (days === 1) rel = "昨天";
+    else rel = `${days} 天前`;
+
+    return { rel, abs };
   }
 
-  function moodText(m) {
-    // 你後端如果回 mood 字串，就會更準；沒回也沒關係
-    const map = { happy:"😀 開心", neutral:"🙂 普通", sad:"😢 難過", angry:"😡 生氣" };
-    return map[m] || "";
+  function esc(s) { return (s || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"); }
+  function moodText(m) { const map = { happy: "😀 開心", neutral: "🙂 普通", sad: "😢 難過", angry: "😡 生氣" }; return map[m] || ""; }
+
+  // ===== 隨機選題邏輯 =====
+  function selectRandomQuestion() {
+    let newQuestion;
+    do {
+      const randomIndex = Math.floor(Math.random() * questionPool.length);
+      newQuestion = questionPool[randomIndex];
+    } while (newQuestion === currentQuestion && questionPool.length > 1);
+
+    currentQuestion = newQuestion;
+    qText.textContent = "Q：" + currentQuestion;
+    answerEl.value = ""; // 清空輸入框
+    qaStatus.textContent = "已更新題目";
   }
 
-  // ===== Mood Gate + status =====
+  // ===== Mood Gate & Status =====
   async function refreshMoodAndGate() {
     const res = await fetch("/api/patient/today_status");
     const s = await res.json();
-
-    // 顯示狀態
     if (s.mood) {
       moodLabel.textContent = "心情：" + moodText(s.mood) + " ✅";
     } else {
       moodLabel.textContent = s.mood_done ? "心情：已填 ✅（可更新）" : "心情：尚未填 ⚠️";
     }
-
-    // gate：沒填就強制跳
-    if (!s.mood_done) {
-      moodModal.style.display = "flex";
-    }
+    if (!s.mood_done) { moodModal.style.display = "flex"; }
     return s;
   }
 
   async function setMood(mood) {
-    const res = await fetch("/api/mood", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({mood})
-    });
+    const res = await fetch("/api/mood", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mood }) });
     const j = await res.json();
-
-    if (!res.ok) {
-      qaStatus.textContent = "心情送出失敗：" + (j.error || res.status);
-      return;
-    }
-
     if (j.ok) {
       moodModal.style.display = "none";
       qaStatus.textContent = "心情已更新 ✅";
       await refreshMoodAndGate();
-      // 選完心情後，確保 QA 有載入
       await loadQA();
     }
   }
 
-  document.querySelectorAll(".moodBtn").forEach(btn => {
-    btn.addEventListener("click", () => setMood(btn.dataset.mood));
-  });
-
-  moodOpenBtn.addEventListener("click", () => {
-    moodModal.style.display = "flex";
-  });
+  document.querySelectorAll(".moodBtn").forEach(btn => btn.addEventListener("click", () => setMood(btn.dataset.mood)));
+  moodOpenBtn.addEventListener("click", () => moodModal.style.display = "flex");
 
   // ===== QA Wall =====
   function renderWall(items) {
     wall.innerHTML = "";
-
-    if (!items || items.length === 0) {
-      wall.innerHTML = `<div style="color:#777;">今天還沒有人回答，等你先開第一槍 🙂</div>`;
-      return;
-    }
-
-    // 先找我自己的回答（方便回填）
+    if (!items || items.length === 0) { wall.innerHTML = `<div style="color:#777;">今天還沒有人回答，等你先開第一槍 🙂</div>`; return; }
     const me = items.find(x => x.is_me);
-    if (me && me.answer) {
-      answerEl.value = me.answer;
-    } else {
-      answerEl.value = "";
-    }
-
+    if (me && me.answer) answerEl.value = me.answer;
     items.forEach(it => {
       const box = document.createElement("div");
-      box.style.background = "white";
-      box.style.border = "1px solid #e5e7eb";
-      box.style.borderRadius = "16px";
-      box.style.padding = "14px";
-      box.style.marginBottom = "10px";
-
+      box.style.background = "white"; box.style.border = "1px solid #e5e7eb"; box.style.borderRadius = "16px"; box.style.padding = "14px"; box.style.marginBottom = "10px";
       const name = esc(it.user_name || ("User " + it.user_id));
-      const when = esc(it.updated_at || "");
-      const ans = esc(it.answer || "");
-
+      const t = formatTime(it.updated_at);
       box.innerHTML = `
         <div style="display:flex; gap:10px; align-items:flex-start;">
-          ${it.avatar_url
-            ? `<img src="${it.avatar_url}" style="width:38px;height:38px;border-radius:999px;object-fit:cover;">`
-            : `<div style="width:38px;height:38px;border-radius:999px;background:#eee;"></div>`
-          }
+          ${it.avatar_url ? `<img src="${it.avatar_url}" style="width:38px;height:38px;border-radius:999px;object-fit:cover;">` : `<div style="width:38px;height:38px;border-radius:999px;background:#eee;"></div>`}
           <div style="flex:1;">
-            <div style="font-weight:1000; font-size:16px;">
-              ${name} ${it.is_me ? "（我）" : ""}
-            </div>
-            <div style="color:#777; font-size:12px;">${when}</div>
-            <div style="margin-top:8px; white-space:pre-wrap; font-size:16px;">${ans}</div>
+            <div style="font-weight:1000; font-size:16px;">${name} ${it.is_me ? "（我）" : ""}</div>
+            <div style="color:#777; font-size:12px;">${t ? t.rel : ""}</div>
+            <div style="margin-top:8px; white-space:pre-wrap; font-size:16px;">${esc(it.answer || "")}</div>
           </div>
-        </div>
-      `;
+        </div>`;
       wall.appendChild(box);
     });
   }
@@ -180,57 +179,32 @@
     qaStatus.textContent = "";
     const r = await fetch("/api/qa/today");
     const j = await r.json();
+    if (!r.ok) { qText.textContent = "Q：讀取失敗"; return; }
 
-    if (!r.ok) {
-      qText.textContent = "Q：讀取失敗";
-      qaStatus.textContent = "錯誤：" + (j.error || r.status);
-      return;
-    }
-
-    currentQuestion = j.question || "今天讓你覺得最溫暖的一件事是什麼？";
-    qText.textContent = "Q：" + currentQuestion;
-
+    // 初始化選題
+    selectRandomQuestion();
     renderWall(j.items || []);
   }
 
   async function submitAnswer() {
     const ans = (answerEl.value || "").trim();
-    if (!ans) {
-      qaStatus.textContent = "回答不能空白";
-      return;
-    }
-
+    if (!ans) { qaStatus.textContent = "回答不能空白"; return; }
     sendBtn.disabled = true;
     qaStatus.textContent = "送出中…";
-
-    const r = await fetch("/api/qa/answer", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ question: currentQuestion, answer: ans })
-    });
-    const j = await r.json();
-
-    if (!r.ok) {
-      sendBtn.disabled = false;
-      qaStatus.textContent = "失敗：" + (j.error || r.status);
-      return;
-    }
-
+    const r = await fetch("/api/qa/answer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: currentQuestion, answer: ans }) });
+    if (!r.ok) { sendBtn.disabled = false; qaStatus.textContent = "失敗"; return; }
     qaStatus.textContent = "已送出 ✅";
     sendBtn.disabled = false;
-
     await loadQA();
   }
 
   sendBtn.addEventListener("click", submitAnswer);
+  shuffleBtn.addEventListener("click", selectRandomQuestion);
 
   // ===== Boot =====
   (async () => {
     const s = await refreshMoodAndGate();
-    // mood 已填：直接載 QA；未填：等 setMood 後再載
-    if (s.mood_done) {
-      await loadQA();
-    }
+    if (s.mood_done) { await loadQA(); }
   })();
 </script>
 {% endblock %}

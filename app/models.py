@@ -213,6 +213,8 @@ class DailyTask(db.Model):
     created_at = db.Column(db.DateTime, default=dt.datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow, nullable=False)
 
+    caregiver_done_at  = db.Column(db.DateTime, nullable=True)
+    patient_confirmed_at = db.Column(db.DateTime, nullable=True)
     __table_args__ = (
         db.UniqueConstraint("daily_record_id", "caregiver_user_id", name="uq_daily_task_user"),
     )
@@ -251,6 +253,9 @@ class User(db.Model, UserMixin):
     coins = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=dt.datetime.utcnow, nullable=False)
     onboarding_done = db.Column(db.Boolean, default=False, nullable=False)
+    last_login_date = db.Column(db.Date,    nullable=True)
+    streak_days     = db.Column(db.Integer, default=0, nullable=False)
+    companion_days  = db.Column(db.Integer, default=0, nullable=False)
 
 
 class Group(db.Model):
@@ -352,3 +357,12 @@ class GameRecord(db.Model):
 
     # 建立關聯：這行必須縮進在 class 裡面
     user = db.relationship('User', backref=db.backref('game_records', lazy=True))
+class LoginLog(db.Model):
+    __tablename__ = "login_logs"
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    login_date = db.Column(db.Date, nullable=False, index=True)
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "login_date", name="uq_login_log"),
+    )

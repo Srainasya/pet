@@ -14,8 +14,33 @@
 
 {% block scripts %}
 <script>
-  const list = document.getElementById("list");
+  function formatTime(isoStr) {
+    if (!isoStr) return null;
+    const d = new Date(isoStr);
+    if (isNaN(d)) return null;
 
+    const abs = d.toLocaleString("zh-TW", {
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false
+    });
+    // DB 存的是台灣時間但沒有 timezone info，補回 +8
+    const twOffset = 8 * 60 * 60 * 1000;
+    const diff = Date.now() - (d.getTime() + twOffset);
+    
+    const mins  = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days  = Math.floor(diff / 86400000);
+
+    let rel;
+    if (mins < 1)        rel = "剛剛";
+    else if (mins < 60)  rel = `${mins} 分鐘前`;
+    else if (hours < 24) rel = `${hours} 小時前`;
+    else if (days === 1) rel = "昨天";
+    else                 rel = `${days} 天前`;
+
+    return { rel, abs };
+  }
+  const list = document.getElementById("list");
   function esc(s){
     return (s||"")
       .replaceAll("&","&amp;")
@@ -61,8 +86,14 @@
             : `<div style="width:38px;height:38px;border-radius:999px;background:#eee;"></div>`
           }
           <div style="flex:1;">
-            <div style="font-weight:1000; font-size:16px;">${esc(it.caregiver_name)}</div>
-            <div style="margin-top:6px; font-size:18px; white-space:pre-wrap;">${esc(it.task_text)}</div>
+             <div style="font-weight:1000; font-size:16px;">${esc(it.caregiver_name)}</div>
+              ${(() => {
+                const t = formatTime(it.updated_at);
+                return t
+                  ? `<div style="color:#777; font-size:12px; cursor:default; margin-top:2px;" title="${t.abs}">${t.rel}</div>`
+                  : "";
+              })()}
+              <div style="margin-top:6px; font-size:18px; white-space:pre-wrap;">${esc(it.task_text)}</div>
             <button data-id="${it.task_id}" style="margin-top:10px; padding:10px 14px; font-size:16px;">
               我確認他已完成
             </button>
