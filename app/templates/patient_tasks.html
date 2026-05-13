@@ -16,23 +16,26 @@
 <script>
   function formatTime(isoStr) {
     if (!isoStr) return null;
-    const d = new Date(isoStr);
+    
+    // 把 T 換成空格，確保瀏覽器乖乖當成本地時間解析
+    const cleanStr = String(isoStr).replace('T', ' ');
+    const d = new Date(cleanStr);
     if (isNaN(d)) return null;
 
     const abs = d.toLocaleString("zh-TW", {
       year: "numeric", month: "2-digit", day: "2-digit",
       hour: "2-digit", minute: "2-digit", hour12: false
     });
-    // DB 存的是台灣時間但沒有 timezone info，補回 +8
-    const twOffset = 8 * 60 * 60 * 1000;
-    const diff = Date.now() - (d.getTime() + twOffset);
+    
+    // 🌟 核心修正：直接把現在時間減去任務時間，不要再加減 8 小時了
+    const diff = Date.now() - d.getTime();
     
     const mins  = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days  = Math.floor(diff / 86400000);
 
     let rel;
-    if (mins < 1)        rel = "剛剛";
+    if (diff < 0 || mins < 1) rel = "剛剛"; // 加上 diff < 0 防呆
     else if (mins < 60)  rel = `${mins} 分鐘前`;
     else if (hours < 24) rel = `${hours} 小時前`;
     else if (days === 1) rel = "昨天";
