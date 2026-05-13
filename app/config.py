@@ -2,7 +2,7 @@ import os
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///dev.db")
+    SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")

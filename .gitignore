@@ -5,7 +5,7 @@ __pycache__/
 
 # 忽略環境變數設定檔 (機密資訊)
 .env
-
+.deployment
 # 忽略本地端開發用的資料庫檔案
 instance/*.db
 
