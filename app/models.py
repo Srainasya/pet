@@ -169,6 +169,11 @@ import secrets
 from flask_login import UserMixin
 from .extensions import db
 
+from datetime import timezone, timedelta
+
+TW = timezone(timedelta(hours=8))
+def now_tw():
+    return dt.datetime.now(TW).replace(tzinfo=None)
 
 class StoreItem(db.Model):
     __tablename__ = "store_items"
@@ -210,8 +215,8 @@ class DailyTask(db.Model):
     caregiver_done = db.Column(db.Boolean, default=False, nullable=False)
     patient_confirmed = db.Column(db.Boolean, default=False, nullable=False)
 
-    created_at = db.Column(db.DateTime, default=dt.datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_tw)
+    updated_at = db.Column(db.DateTime, default=now_tw, onupdate=now_tw)
 
     caregiver_done_at  = db.Column(db.DateTime, nullable=True)
     patient_confirmed_at = db.Column(db.DateTime, nullable=True)
@@ -235,8 +240,8 @@ class UserDailyProgress(db.Model):
     pet_level = db.Column(db.Integer, default=1, nullable=False)
     farm_state = db.Column(db.Text, default="{}", nullable=False)
 
-    created_at = db.Column(db.DateTime, default=dt.datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_tw)
+    updated_at = db.Column(db.DateTime, default=now_tw, onupdate=now_tw)
 
     __table_args__ = (
         db.UniqueConstraint("daily_record_id", "user_id", name="uq_progress_daily_user"),
@@ -251,7 +256,7 @@ class User(db.Model, UserMixin):
     name = db.Column(db.String(255), nullable=True)
     avatar_url = db.Column(db.Text, nullable=True)
     coins = db.Column(db.Integer, default=0, nullable=False)
-    created_at = db.Column(db.DateTime, default=dt.datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_tw)
     onboarding_done = db.Column(db.Boolean, default=False, nullable=False)
     last_login_date = db.Column(db.Date,    nullable=True)
     streak_days     = db.Column(db.Integer, default=0, nullable=False)
@@ -263,7 +268,7 @@ class Group(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), default="My Family", nullable=False)
     invite_code = db.Column(db.String(12), unique=True, index=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=dt.datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_tw)
 
     @staticmethod
     def new_invite_code():
@@ -280,7 +285,7 @@ class GroupMember(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey("groups.id"), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     role = db.Column(db.String(16), nullable=False)
-    created_at = db.Column(db.DateTime, default=dt.datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_tw)
 
     __table_args__ = (
         db.UniqueConstraint("group_id", "user_id", name="uq_group_user"),
@@ -292,7 +297,7 @@ class DailyRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     group_id = db.Column(db.Integer, db.ForeignKey("groups.id"), nullable=False, index=True)
     date = db.Column(db.Date, nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=dt.datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_tw)
 
     __table_args__ = (
         db.UniqueConstraint("group_id", "date", name="uq_group_date"),
@@ -305,7 +310,7 @@ class MoodEntry(db.Model):
     daily_record_id = db.Column(db.Integer, db.ForeignKey("daily_records.id"), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     mood = db.Column(db.String(32), nullable=False)
-    created_at = db.Column(db.DateTime, default=dt.datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_tw)
 
     __table_args__ = (
         db.UniqueConstraint("daily_record_id", "user_id", name="uq_daily_user_mood"),
@@ -320,7 +325,7 @@ class Photo(db.Model):
     uploader_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     stored_path = db.Column(db.String(255), nullable=False)
     original_name = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=dt.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_tw)
 
     daily_record = db.relationship("DailyRecord", backref=db.backref("photos", lazy=True))
     uploader = db.relationship("User", foreign_keys=[uploader_user_id])
@@ -336,8 +341,8 @@ class QAEntry(db.Model):
     question = db.Column(db.Text, nullable=False)
     answer = db.Column(db.Text, nullable=False)
 
-    created_at = db.Column(db.DateTime, default=dt.datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_tw)
+    updated_at = db.Column(db.DateTime, default=now_tw, onupdate=now_tw)
 
     __table_args__ = (
         db.UniqueConstraint("daily_record_id", "user_id", name="uq_daily_user_qa"),
@@ -353,7 +358,7 @@ class GameRecord(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False) 
     game_type = db.Column(db.String(50), default='memory_match')
     score = db.Column(db.Integer)  # 這裡存秒數
-    completed_at = db.Column(db.DateTime, default=dt.datetime.utcnow, nullable=False)
+    completed_at = db.Column(db.DateTime, default=now_tw, nullable=False)
 
     # 建立關聯：這行必須縮進在 class 裡面
     user = db.relationship('User', backref=db.backref('game_records', lazy=True))

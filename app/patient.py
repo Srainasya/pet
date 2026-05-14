@@ -181,11 +181,10 @@ def farm():
 def photos():
     group_id = get_group_id()
     if not group_id:
-        flash("尚未綁定家庭，請先完成 onboarding。")
+        flash("尚未綁定家庭")
         return redirect(url_for("onboarding.start"))
 
     today = date.today()
-
     from .api import get_or_create_daily_record
     dr = get_or_create_daily_record(group_id, today)
 
@@ -195,14 +194,12 @@ def photos():
             flash("請選擇照片")
             return redirect(url_for("patient.photos"))
 
-        safe_name = secure_filename(f.filename)
-
-        if not _allowed(safe_name):
-            flash("檔案格式不支援（只允許 jpg/jpeg/png/webp/gif）")
-            return redirect(url_for("patient.photos"))
-
-        ext = safe_name.rsplit(".", 1)[1].lower()
-
+        original_name = f.filename # 🌟 定義變數
+        safe_name = secure_filename(original_name)
+        
+        ext = safe_name.rsplit(".", 1)[1].lower() if "." in safe_name else "jpg"
+        
+        # 🌟 統一資料夾與路徑
         rel_dir = os.path.join("uploads", str(group_id), today.isoformat())
         abs_dir = os.path.join(current_app.static_folder, rel_dir)
         os.makedirs(abs_dir, exist_ok=True)
@@ -211,29 +208,25 @@ def photos():
         abs_path = os.path.join(abs_dir, filename)
         f.save(abs_path)
 
+        # 🌟 將確切的相對路徑存入資料庫，確保顯示正常
         rel_path = os.path.join(rel_dir, filename).replace("\\", "/")
 
+        # 🌟 注意！寫入資料庫必須縮進在 if POST 裡面
         p = Photo(
             group_id=group_id,
             daily_record_id=dr.id,
             uploader_user_id=current_user.id,
             stored_path=rel_path,
-            original_name=safe_name,
+            original_name=original_name,
         )
         db.session.add(p)
         db.session.commit()
-
         flash("上傳成功 ✅")
         return redirect(url_for("patient.photos"))
 
-    photos = (
-        Photo.query
-        .filter_by(daily_record_id=dr.id)
-        .order_by(Photo.created_at.desc())
-        .all()
-    )
-
-    return render_template("patient_photos.html", photos=photos, today=today)
+    # GET 請求：顯示照片列表
+    photos_list = Photo.query.filter_by(daily_record_id=dr.id).order_by(Photo.created_at.desc()).all()
+    return render_template("patient_photos.html", photos=photos_list, today=today)
 
 
 # ========== QA / Tasks ==========

@@ -435,22 +435,28 @@ def upload_photo():
 
     dr = get_or_create_daily_record(group_id, target_date)
 
-    upload_dir = current_app.config.get("UPLOAD_DIR") or os.path.join(current_app.instance_path, "uploads")
+    # 🛠️ 修正 1：指定存到 static/uploads 資料夾
+    upload_dir = os.path.join(current_app.root_path, "static", "uploads")
     os.makedirs(upload_dir, exist_ok=True)
 
     original_name = f.filename or "upload"
     safe = secure_filename(original_name)
     stamp = now_tw().strftime("%Y%m%d_%H%M%S_%f")
     filename = f"{group_id}_{target_date.isoformat()}_{stamp}_{safe}"
-    path = os.path.join(upload_dir, filename)
+    
+    # 電腦實體儲存路徑
+    save_path = os.path.join(upload_dir, filename)
+    f.save(save_path)
 
-    f.save(path)
+    # 🛠️ 修正 2：存進資料庫的路徑，只要相對於 static 的乾淨字串
+    # 這裡必須用正斜線，確保網頁能正常讀取
+    db_path = f"uploads/{filename}"
 
     p = Photo(
         group_id=group_id,
         daily_record_id=dr.id,
         uploader_user_id=current_user.id,
-        stored_path=path,
+        stored_path=db_path,  # ✅ 存入乾淨的相對路徑
         original_name=original_name,
     )
     db.session.add(p)
@@ -459,7 +465,7 @@ def upload_photo():
     return jsonify({
         "ok":         True,
         "id":         p.id,
-        "url":        url_for("api.photo_file", photo_id=p.id),
+        "url":        url_for('static', filename=db_path), # ✅ 回傳正確網址
         "created_at": p.created_at.isoformat(),
     })
 
@@ -470,34 +476,36 @@ def upload_photo():
 @login_required
 def qa_today():
     group_id = get_group_id_for_user()
-    if not group_id:
-        return jsonify({"error": "no_group"}), 400
+    if not group_id: return jsonify({"error": "no_group"}), 400
 
     today = dt.date.today()
     dr = get_or_create_daily_record(group_id, today)
 
+    # 🌟 修正點 1：改用 created_at 排序，保證資料庫絕對找得到這個欄位！
     items = (QAEntry.query
              .filter_by(daily_record_id=dr.id)
-             .order_by(QAEntry.updated_at.desc())
+             .order_by(QAEntry.created_at.desc()) 
              .all())
 
     question = items[0].question if items else "今天讓你覺得最溫暖的一件事是什麼？"
 
-    return jsonify({
-        "date":     today.isoformat(),
-        "question": question,
-        "items": [
-            {
-                "id":         x.id,
-                "user_id":    x.user_id,
-                "user_name":  getattr(x.user, "name", None),
-                "avatar_url": getattr(x.user, "avatar_url", None),
-                "answer":     x.answer,
-                "updated_at": ts.isoformat() if ts else None,
-                "is_me":      (x.user_id == current_user.id),
-            } for x in items
-        ]
-    })
+    item_list = []
+    for x in items:
+        # 🌟 修正點 2：防呆機制，不管資料庫叫 created_at 還是 updated_at 都能抓到
+        ts = getattr(x, 'updated_at', None) or getattr(x, 'created_at', None)
+        u = db.session.get(User, x.user_id) 
+        
+        item_list.append({
+            "id": x.id,
+            "user_id": x.user_id,
+            "user_name": u.name if u else f"User {x.user_id}",
+            "avatar_url": u.avatar_url if u else None,
+            "answer": x.answer,
+            "updated_at": ts.isoformat() if ts else None,
+            "is_me": (x.user_id == current_user.id),
+        })
+
+    return jsonify({"date": today.isoformat(), "question": question, "items": item_list})
 
 
 @bp.post("/qa/answer")

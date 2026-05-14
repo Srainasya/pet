@@ -13,16 +13,12 @@ def create_app():
     login_manager.init_app(app)
 
     # ── 修正後的 台灣時間 Jinja2 filter ──
-    @app.template_filter("tw")
-    def tw_filter(dt_obj):
-        if dt_obj is None:
-            return "—"
-        tw_time = dt_obj + timedelta(hours=8)
-        return tw_time.strftime("%Y-%m-%d %H:%M")
-
-    # 下面這行 with 必須跟上面的 def 對齊（前面只有 4 個空格）
-    with app.app_context():
-        db.create_all()
+    @app.template_filter('tw')
+    def format_tw_time(value):
+        if value is None:
+            return ""
+    # 🌟 因為 value 已經是台灣時間了，我們現在只負責把它排版得漂漂亮亮
+        return value.strftime('%Y-%m-%d %H:%M')
 
     from .auth import bp as auth_bp
     from .onboarding import bp as onboarding_bp

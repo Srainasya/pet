@@ -17,8 +17,12 @@
   function formatTime(isoStr) {
     if (!isoStr) return null;
     
-    // 把 T 換成空格，確保瀏覽器乖乖當成本地時間解析
-    const cleanStr = String(isoStr).replace('T', ' ');
+    // 🌟 修正點 1：如果字串沒有時區標示（沒有 + 結尾，也沒有 Z），強制補上台灣時區 "+08:00"
+    let cleanStr = String(isoStr);
+    if (!cleanStr.includes("+") && !cleanStr.endsWith("Z")) {
+        cleanStr += "+08:00";
+    }
+
     const d = new Date(cleanStr);
     if (isNaN(d)) return null;
 
@@ -27,7 +31,6 @@
       hour: "2-digit", minute: "2-digit", hour12: false
     });
     
-    // 🌟 核心修正：直接把現在時間減去任務時間，不要再加減 8 小時了
     const diff = Date.now() - d.getTime();
     
     const mins  = Math.floor(diff / 60000);
@@ -35,7 +38,9 @@
     const days  = Math.floor(diff / 86400000);
 
     let rel;
-    if (diff < 0 || mins < 1) rel = "剛剛"; // 加上 diff < 0 防呆
+    // 🌟 修正點 2：增加對「未來時間」的寬容度（有時候電腦時間差個幾秒會變成負數）
+    if (diff < 0) rel = "剛剛"; 
+    else if (mins < 1)   rel = "剛剛";
     else if (mins < 60)  rel = `${mins} 分鐘前`;
     else if (hours < 24) rel = `${hours} 小時前`;
     else if (days === 1) rel = "昨天";

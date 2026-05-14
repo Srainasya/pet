@@ -209,6 +209,7 @@
 
         setTimeout(() => {
             alert(`🎉 恭喜完成！\n總共花了 ${secondsElapsed} 秒。成績已紀錄在您的帳號中！`);
+            window.location.reload();
             const startBtn = document.getElementById('start-btn');
             startBtn.innerText = '再玩一次';
             startBtn.style.display = 'inline-block';
