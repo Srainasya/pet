@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request, current_app, url_for
 from flask_login import login_required, current_user
 
 from .extensions import db
-from .models import GroupMember, DailyRecord, MoodEntry, Photo, UserDailyProgress, QAEntry, DailyTask, User
+from .models import GroupMember, DailyRecord, MoodEntry, Photo, UserDailyProgress, QAEntry, DailyTask, User, StoreItem, UserStoreItem
 from flask import send_file
 from werkzeug.exceptions import NotFound, Forbidden
 from werkzeug.utils import secure_filename
@@ -149,9 +149,11 @@ def tasks_complete():
 
     task.caregiver_done    = True
     task.caregiver_done_at = now_tw()
+    user = db.session.get(User, current_user.id)
+    user.coins += 5
     db.session.commit()
 
-    return jsonify({"ok": True, "caregiver_done": True})
+    return jsonify({"ok": True, "caregiver_done": True, "coins_earned": 5, "coins_total": user.coins})
 
 
 @bp.get("/tasks/pending_confirmations")
@@ -222,8 +224,10 @@ def tasks_confirm():
 
     task.patient_confirmed    = True
     task.patient_confirmed_at = now_tw()
+    user = db.session.get(User, current_user.id)
+    user.coins += 5
     db.session.commit()
-    return jsonify({"ok": True, "patient_confirmed": True})
+    return jsonify({"ok": True, "patient_confirmed": True, "coins_earned": 5, "coins_total": user.coins})
 
 
 # ───────────────────────── today_status ─────────────────────────
@@ -283,6 +287,7 @@ def patient_today_status():
         "farm_state":       progress.farm_state,
         "streak_days":      current_user.streak_days    or 0,
         "companion_days":   current_user.companion_days or 0,
+        "coins":            current_user.coins          or 0,
         "today_progress":   done,
         "next_action":      next_action,
         "vapid_public_key": current_app.config.get("VAPID_PUBLIC_KEY", ""),
@@ -460,6 +465,8 @@ def upload_photo():
         original_name=original_name,
     )
     db.session.add(p)
+    user = db.session.get(User, current_user.id)  # 明確從 session 抓
+    user.coins += 5
     db.session.commit()
 
     return jsonify({
@@ -533,6 +540,7 @@ def qa_answer():
         me.question = question
         me.answer = answer
 
+    current_user.coins += 10
     db.session.commit()
     return jsonify({"ok": True})
 
@@ -634,3 +642,59 @@ def stats():
         "streak_days":    current_user.streak_days    or 0,
         "companion_days": current_user.companion_days or 0,
     })
+
+@bp.post("/store/buy")
+@login_required
+def store_buy():
+    data = request.get_json(force=True)
+    item_id = int(data.get("item_id") or 0)
+    
+    item = StoreItem.query.get(item_id)
+    if not item:
+        return jsonify({"error": "not_found"}), 404
+    
+    # 檢查是否已擁有
+    already = UserStoreItem.query.filter_by(
+        user_id=current_user.id, 
+        store_item_id=item_id
+    ).first()
+    if already:
+        return jsonify({"error": "already_owned"}), 400
+    
+    # 檢查錢夠不夠
+    if current_user.coins < item.price:
+        return jsonify({"error": "not_enough_coins"}), 400
+    
+    # 扣錢 + 新增擁有紀錄
+    current_user.coins -= item.price
+    new_item = UserStoreItem(
+        user_id=current_user.id,
+        store_item_id=item_id,
+        unlocked=True
+    )
+    db.session.add(new_item)
+    db.session.commit()
+    
+    return jsonify({"ok": True, "coins_left": current_user.coins})
+
+# ───────────────────────── farm furniture ─────────────────────────
+
+@bp.get("/farm/owned_furniture")
+@login_required
+def farm_owned_furniture():
+    owned = (
+        UserStoreItem.query
+        .join(StoreItem, StoreItem.id == UserStoreItem.store_item_id)
+        .filter(
+            UserStoreItem.user_id == current_user.id,
+            UserStoreItem.unlocked == True,
+            StoreItem.category == "item"
+        )
+        .all()
+    )
+    items = [{
+        "id": row.store_item_id,
+        "name": row.store_item.name,
+        "image": row.store_item.image,
+    } for row in owned]
+    return jsonify({"items": items})

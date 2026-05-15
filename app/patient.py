@@ -172,7 +172,8 @@ def farm():
 
     return render_template(
         "patient_farm.html",
-        group=group
+        group=group,
+        current_user_id=current_user.id
     )
 
 # ========== Photos ==========
@@ -220,8 +221,10 @@ def photos():
             original_name=original_name,
         )
         db.session.add(p)
+        user = db.session.get(User, current_user.id)
+        user.coins += 5
         db.session.commit()
-        flash("上傳成功 ✅")
+        flash("上傳成功 ✅　+5 🪙")
         return redirect(url_for("patient.photos"))
 
     # GET 請求：顯示照片列表

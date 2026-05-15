@@ -10,7 +10,6 @@
 <div class="scene">
 
 <!-- ================= HUD ================= -->
-  <!-- ================= HUD ================= -->
 <div class="hud">
   <div class="hud-card">
     <div class="hud-row-progress">
@@ -23,6 +22,7 @@
     <div class="hud-row-chips">
       <span class="chip chip-fire">🔥 連續 <span id="streakDays">0</span> 天</span>
       <span class="chip chip-green">📅 陪伴 <span id="companionDays">0</span> 天</span>
+      <span class="chip chip-yellow">🪙 <span id="coinCount">0</span> 枚</span>
     </div>
   </div>
   <div class="hud-right">
@@ -38,6 +38,7 @@
     <div class="invite-tip">把這組邀請碼給家人，他們就能加入你的家庭</div>
   </div>
   {% endif %}
+
   <!-- ================= PET ================= -->
   <div class="pet-sprite" id="pet">
     <div class="pet-bubble" id="petBubble">嗨～</div>
@@ -50,9 +51,7 @@
     </div>
   </div>
 
-
   <!-- ================= PET HOME ================= -->
-  <!-- 直接用 a 當房子，不要 hotspot 疊兩層 -->
   <a class="pet-home" href="/patient/pet" aria-label="寵物的家">
     <div class="home-roof"></div>
     <div class="home-body">
@@ -62,42 +61,49 @@
     <div class="home-tag">寵物的家</div>
   </a>
 
+  <!-- ================= FURNITURE LAYER ================= -->
+  <div id="furnitureLayer" style="position:absolute;inset:0;pointer-events:none;z-index:5;"></div>
+
+  <!-- ================= FURNITURE PANEL ================= -->
+  <div id="furniturePanel" style="display:none;position:fixed;bottom:80px;left:50%;
+    transform:translateX(-50%);background:rgba(255,255,255,0.96);border-radius:16px;
+    padding:14px 16px;z-index:50;box-shadow:0 4px 20px rgba(0,0,0,0.2);
+    max-width:360px;width:92%;max-height:260px;overflow-y:auto;">
+    <div style="font-weight:700;margin-bottom:10px;text-align:center;font-size:15px;">🛋️ 點選家具放到農場</div>
+    <div id="furnitureTray" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;"></div>
+    <div style="margin-top:12px;text-align:center;display:flex;gap:8px;justify-content:center;">
+      <button onclick="exitFurnitureMode()" style="background:#4caf50;color:#fff;border:none;
+        border-radius:8px;padding:8px 20px;font-size:14px;cursor:pointer;font-weight:600;">✅ 完成</button>
+      <button onclick="clearAllFurniture()" style="background:#f44336;color:#fff;border:none;
+        border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer;">🗑️ 清空</button>
+    </div>
+  </div>
 
   <!-- ================= BOTTOM DOCK ================= -->
-  <!-- 不再用 sign + hotspot，那是舊版 -->
   <div class="dock">
-
     <a class="dock-item" href="/patient/tasks">
-      <span class="ico"></span>
-      <span class="txt">任務</span>
+      <span class="ico"></span><span class="txt">任務</span>
     </a>
     <a class="dock-item" href="/patient/games">
-      <span class="ico"></span>
-      <span class="txt">遊戲</span>
+      <span class="ico"></span><span class="txt">遊戲</span>
     </a>
     <a class="dock-item" href="/patient/qa">
-      <span class="ico"></span>
-      <span class="txt">問答</span>
+      <span class="ico"></span><span class="txt">問答</span>
     </a>
-
     <a class="dock-item" href="/patient/photos">
-      <span class="ico"></span>
-      <span class="txt">相簿</span>
+      <span class="ico"></span><span class="txt">相簿</span>
     </a>
-
     <a class="dock-item" href="/patient/calendar">
-      <span class="ico"></span>
-      <span class="txt">日曆</span>
+      <span class="ico"></span><span class="txt">日曆</span>
     </a>
-
-    
-
     <a class="dock-item" href="/patient/stats">
-      <span class="ico"></span>
-      <span class="txt">分析</span>
+      <span class="ico"></span><span class="txt">分析</span>
     </a>
-
-</div>
+    <button id="furnitureEditBtn" onclick="toggleFurnitureMode()"
+      class="dock-item" style="background:white;border:none;cursor:pointer;padding:0;color:inherit;font-family:inherit;">
+      <span class="ico">🛋️</span><span class="txt">佈置</span>
+    </button>
+  </div>
 
   <!-- ================= FOCUS ================= -->
   {% if focus %}
@@ -114,81 +120,49 @@
 {% endblock %}
 {% block scripts %}
 <script>
-/* =========================
-   Farm Home JS (SAFE)
-   - status / progress
-   - pet wander avoids dock + home + hud
-   - no pointer (avoid null errors)
-   ========================= */
-
 (function () {
-  // ---------- helpers ----------
   function $(sel) { return document.querySelector(sel); }
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
   function rand(min, max) { return Math.random() * (max - min) + min; }
 
-  // ---------- elements ----------
   const pet = $("#pet");
   const bubble = $("#petBubble");
   const progressFill = $("#progressFill");
   const hudText = $("#hudText");
   const petPieces = $("#petPieces");
-
   const dock = $(".dock");
   const home = $(".pet-home");
   const hud = $(".hud");
 
-  // (optional) add a simple tip above dock (so you still have guidance)
-  // If you don't want, you can remove createTipBar() call below.
-let tipBar = null;
-let tipTextEl = null;
+  /* --- tip bar --- */
+  let tipBar = null, tipTextEl = null;
+  function createTipBar() {
+    tipBar = document.createElement("div");
+    tipBar.className = "tip"; tipBar.id = "tipBar";
+    const btn = document.createElement("button");
+    btn.className = "tip-close"; btn.type = "button";
+    btn.setAttribute("aria-label", "關閉提示"); btn.textContent = "✕";
+    tipTextEl = document.createElement("div");
+    tipTextEl.className = "tip-text"; tipTextEl.textContent = "歡迎回來～";
+    tipBar.appendChild(btn); tipBar.appendChild(tipTextEl);
+    document.body.appendChild(tipBar);
+    btn.addEventListener("click", () => tipBar.classList.add("is-hidden"));
+  }
+  createTipBar();
 
-function createTipBar() {
-  tipBar = document.createElement("div");
-  tipBar.className = "tip";
-  tipBar.id = "tipBar";
-
-  // close btn
-  const btn = document.createElement("button");
-  btn.className = "tip-close";
-  btn.id = "tipClose";
-  btn.type = "button";
-  btn.setAttribute("aria-label", "關閉提示");
-  btn.textContent = "✕";
-
-  // text
-  tipTextEl = document.createElement("div");
-  tipTextEl.className = "tip-text";
-  tipTextEl.id = "tipText";
-  tipTextEl.textContent = "歡迎回來～";
-
-  tipBar.appendChild(btn);
-  tipBar.appendChild(tipTextEl);
-  document.body.appendChild(tipBar);
-
-  // bind close (不記 localStorage，重整會再出現)
-  btn.addEventListener("click", () => {
-    tipBar.classList.add("is-hidden");
-  });
-}
-createTipBar();
-// ---- tip dismiss (no persistence) ----
-
-  // ---------- status ----------
+  /* --- status --- */
   async function loadStatus() {
     try {
       const res = await fetch("/api/patient/today_status");
       const s = await res.json();
-
       const done = [s.photo_done, s.mood_done, s.qa_done, s.task_done].filter(Boolean).length;
-     hudText.textContent = `${done}/4`;  // 拿掉「今日進度：」前綴，已移到 HTML
-     document.getElementById("streakDays").textContent    = s.streak_days    ?? 0;
-     document.getElementById("companionDays").textContent = s.companion_days ?? 0;
-      petPieces.textContent = s.pet_pieces_unlocked ?? 0;
-      progressFill.style.width = `${(done / 4) * 100}%`;
-
-      // next action -> tip text (dock style)
-      const msgMap = {
+      hudText.textContent = done + "/4";
+      document.getElementById("streakDays").textContent    = s.streak_days    || 0;
+      document.getElementById("companionDays").textContent = s.companion_days || 0;
+      document.getElementById("coinCount").textContent     = s.coins          || 0;
+      petPieces.textContent = s.pet_pieces_unlocked || 0;
+      progressFill.style.width = ((done / 4) * 100) + "%";
+      var msgMap = {
         photos: "下一步：去相簿上傳/查看照片",
         mood:   "下一步：去問答先選今天心情",
         qa:     "下一步：去問答完成今日問題",
@@ -196,32 +170,176 @@ createTipBar();
         pet:    "太棒了～去寵物的家看看！"
       };
       if (tipTextEl) tipTextEl.textContent = msgMap[s.next_action] || msgMap.photos;
-    } catch (e) {
-      // avoid breaking page
-      if (tipBar) tipBar.textContent = "載入中…";
+    } catch(e) {
       console.warn("loadStatus failed:", e);
     }
   }
   loadStatus();
 
-  // ---------- focus overlay ----------
-  const focusBtn = $("#focusBtn");
+  /* --- focus overlay --- */
+  var focusBtn = $("#focusBtn");
   if (focusBtn) {
-    focusBtn.addEventListener("click", async () => {
-      try { await document.documentElement.requestFullscreen(); } catch (e) {}
-      const ov = $("#focusOverlay");
+    focusBtn.addEventListener("click", function() {
+      try { document.documentElement.requestFullscreen(); } catch(e) {}
+      var ov = $("#focusOverlay");
       if (ov) ov.style.display = "none";
     });
   }
 
-  // ---------- pet movement (avoid UI) ----------
-  let lastX = null;
+  /* ==========================================
+     FURNITURE SYSTEM
+  ========================================== */
+  var STORAGE_KEY = "farm_furniture_v1_{{ current_user_id }}";
+  var furnitureLayer = document.getElementById("furnitureLayer");
+  var furniturePanel = document.getElementById("furniturePanel");
+  var furnitureTray  = document.getElementById("furnitureTray");
+  var editBtn        = document.getElementById("furnitureEditBtn");
+  var isEditMode = false;
+  var ownedFurniture = [];
+
+  function loadPlaced() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch(e) { return []; }
+  }
+
+  function savePlaced(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  function makeDraggable(el, idx) {
+    var scene = document.querySelector(".scene");
+    function onMove(cx, cy) {
+      var rect = scene.getBoundingClientRect();
+      var x = clamp(((cx - rect.left) / rect.width) * 100, 0, 92);
+      var y = clamp(((cy - rect.top) / rect.height) * 100, 0, 88);
+      el.style.left = x + "%";
+      el.style.top  = y + "%";
+      return { x: x, y: y };
+    }
+    el.addEventListener("mousedown", function(e) {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      var lastPos = { x: 0, y: 0 };
+      function mmove(e) { lastPos = onMove(e.clientX, e.clientY); }
+      function mup() {
+        document.removeEventListener("mousemove", mmove);
+        document.removeEventListener("mouseup", mup);
+        var list = loadPlaced();
+        if (list[idx]) { list[idx].x = lastPos.x; list[idx].y = lastPos.y; savePlaced(list); }
+      }
+      document.addEventListener("mousemove", mmove);
+      document.addEventListener("mouseup", mup);
+    });
+    el.addEventListener("touchstart", function(e) {
+      var lastPos = { x: 0, y: 0 };
+      function tmove(e) { e.preventDefault(); var t = e.touches[0]; lastPos = onMove(t.clientX, t.clientY); }
+      function tend() {
+        el.removeEventListener("touchmove", tmove);
+        el.removeEventListener("touchend", tend);
+        var list = loadPlaced();
+        if (list[idx]) { list[idx].x = lastPos.x; list[idx].y = lastPos.y; savePlaced(list); }
+      }
+      el.addEventListener("touchmove", tmove, { passive: false });
+      el.addEventListener("touchend", tend);
+    }, { passive: true });
+    el.addEventListener("contextmenu", function(e) {
+      e.preventDefault();
+      if (confirm("移除「" + (loadPlaced()[idx] || {}).name + "」嗎？")) {
+        var list = loadPlaced(); list.splice(idx, 1); savePlaced(list); renderPlaced();
+      }
+    });
+  }
+
+  function renderPlaced() {
+    furnitureLayer.innerHTML = "";
+    var placed = loadPlaced();
+    placed.forEach(function(item, idx) {
+      var el = document.createElement("img");
+      el.src = item.image; el.alt = item.name; el.title = item.name;
+      el.style.position = "absolute";
+      el.style.left = item.x + "%";
+      el.style.top  = item.y + "%";
+      el.style.width = "64px"; el.style.height = "64px";
+      el.style.objectFit = "contain";
+      el.style.cursor = isEditMode ? "grab" : "default";
+      el.style.pointerEvents = isEditMode ? "auto" : "none";
+      el.style.filter = "drop-shadow(0 2px 4px rgba(0,0,0,0.3))";
+      el.style.userSelect = "none";
+      el.style.zIndex = "6";
+      if (isEditMode) makeDraggable(el, idx);
+      furnitureLayer.appendChild(el);
+    });
+  }
+
+  async function loadOwnedFurniture() {
+    try {
+      var res = await fetch("/api/farm/owned_furniture");
+      var data = await res.json();
+      ownedFurniture = data.items || [];
+    } catch(e) { ownedFurniture = []; }
+  }
+
+  function renderTray() {
+    furnitureTray.innerHTML = "";
+    if (ownedFurniture.length === 0) {
+      furnitureTray.innerHTML = '<div style="color:#999;font-size:13px;text-align:center;">尚未擁有家具<br>去「寵物的家」購買吧！</div>';
+      return;
+    }
+    ownedFurniture.forEach(function(item) {
+      var btn = document.createElement("button");
+      btn.style.cssText = "background:#f9f9f9;border:2px solid #ddd;border-radius:10px;padding:6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;width:72px;";
+      btn.innerHTML = '<img src="' + item.image + '" style="width:40px;height:40px;object-fit:contain;"><span style="font-size:11px;color:#555;">' + item.name + '</span>';
+      btn.onclick = function() { placeFurniture(item); };
+      furnitureTray.appendChild(btn);
+    });
+  }
+
+  function placeFurniture(item) {
+    var list = loadPlaced();
+    list.push({ id: item.id, name: item.name, image: item.image, x: 40, y: 50 });
+    savePlaced(list); renderPlaced();
+  }
+
+  window.toggleFurnitureMode = async function() {
+    isEditMode = !isEditMode;
+    if (isEditMode) {
+      editBtn.textContent = "✕ 關閉";
+      editBtn.style.background = "#ffebee";
+      editBtn.style.borderColor = "#f44336";
+      furniturePanel.style.display = "block";
+      await loadOwnedFurniture();
+      renderTray();
+    } else {
+      window.exitFurnitureMode();
+    }
+    renderPlaced();
+  };
+
+  window.exitFurnitureMode = function() {
+    isEditMode = false;
+    editBtn.textContent = "🛋️ 佈置";
+    editBtn.style.background = "#fff8e1";
+    editBtn.style.borderColor = "#ffc107";
+    furniturePanel.style.display = "none";
+    renderPlaced();
+  };
+
+  window.clearAllFurniture = function() {
+    if (confirm("確定要清空所有家具嗎？")) {
+      savePlaced([]); renderPlaced();
+    }
+  };
+
+  renderPlaced();
+
+  /* ==========================================
+     PET MOVEMENT
+  ========================================== */
+  var lastX = null;
 
   function movePetToPx(x, y, durSec) {
-    pet.style.transition = `left ${durSec}s linear, top ${durSec}s linear`;
-    pet.style.left = x + "px";
-    pet.style.top = y + "px";
-
+    pet.style.transition = "left " + durSec + "s linear, top " + durSec + "s linear";
+    pet.style.left = x + "px"; pet.style.top = y + "px";
     if (lastX !== null) {
       if (x > lastX) pet.classList.add("pet-face-right");
       else pet.classList.remove("pet-face-right");
@@ -230,125 +348,68 @@ createTipBar();
   }
 
   function getRects() {
-    const W = window.innerWidth;
-    const H = window.innerHeight;
-
-    const petRect = pet.getBoundingClientRect();
-    const petW = petRect.width || 170;
-    const petH = petRect.height || 170;
-
-    const hudR = hud ? hud.getBoundingClientRect() : null;
-    const dockR = dock ? dock.getBoundingClientRect() : null;
-    const homeR = home ? home.getBoundingClientRect() : null;
-
-    return { W, H, petW, petH, hudR, dockR, homeR };
+    var petRect = pet.getBoundingClientRect();
+    return {
+      W: window.innerWidth, H: window.innerHeight,
+      petW: petRect.width || 170, petH: petRect.height || 170,
+      hudR:  hud  ? hud.getBoundingClientRect()  : null,
+      dockR: dock ? dock.getBoundingClientRect() : null,
+      homeR: home ? home.getBoundingClientRect() : null
+    };
   }
 
   function getSafeArea() {
-    const m = 14; // margin px
-    const { W, H, petW, petH, hudR, dockR, homeR } = getRects();
-
-    // base: full screen
-    let left = m;
-    let right = W - m - petW;
-    let top = m;
-    let bottom = H - m - petH;
-
-    // avoid HUD (top)
-    if (hudR) {
-      top = Math.max(top, hudR.bottom + 10);
-    }
-
-    // avoid dock (bottom)
-    if (dockR) {
-      bottom = Math.min(bottom, dockR.top - 10 - petH);
-    }
-
-    // keep inside screen
-    right = Math.max(left, right);
-    bottom = Math.max(top, bottom);
-
-    // obstacle: home rectangle (avoid this zone)
-    // We'll reject random points that land inside it.
-    return { left, right, top, bottom, homeR, petW, petH };
+    var m = 14, r = getRects();
+    var left = m, right = r.W - m - r.petW, top = m, bottom = r.H - m - r.petH;
+    if (r.hudR)  top    = Math.max(top,    r.hudR.bottom  + 10);
+    if (r.dockR) bottom = Math.min(bottom, r.dockR.top - 10 - r.petH);
+    return { left: left, right: Math.max(left, right), top: top, bottom: Math.max(top, bottom), homeR: r.homeR, petW: r.petW, petH: r.petH };
   }
 
-  function isInsideRect(cx, cy, rect, pad = 10) {
+  function isInsideRect(cx, cy, rect, pad) {
+    pad = pad || 10;
     if (!rect) return false;
-    return (
-      cx >= rect.left - pad &&
-      cx <= rect.right + pad &&
-      cy >= rect.top - pad &&
-      cy <= rect.bottom + pad
-    );
+    return cx >= rect.left - pad && cx <= rect.right + pad && cy >= rect.top - pad && cy <= rect.bottom + pad;
   }
 
   function pickPoint() {
-    const area = getSafeArea();
-
-    for (let i = 0; i < 30; i++) {
-      const x = rand(area.left, area.right);
-      const y = rand(area.top, area.bottom);
-
-      const cx = x + area.petW / 2;
-      const cy = y + area.petH / 2;
-
-      // avoid home
-      if (isInsideRect(cx, cy, area.homeR, 18)) continue;
-
-      return { x, y };
+    var a = getSafeArea();
+    for (var i = 0; i < 30; i++) {
+      var x = rand(a.left, a.right), y = rand(a.top, a.bottom);
+      if (isInsideRect(x + a.petW / 2, y + a.petH / 2, a.homeR, 18)) continue;
+      return { x: x, y: y };
     }
-
-    // fallback: center-ish
     return { x: window.innerWidth * 0.55, y: window.innerHeight * 0.62 };
   }
 
-  let wanderTimer = null;
-
+  var wanderTimer = null;
   function scheduleWander() {
     if (wanderTimer) clearTimeout(wanderTimer);
-
-    wanderTimer = setTimeout(() => {
-      const p = pickPoint();
-      const dur = rand(1.2, 2.4);
-      movePetToPx(p.x, p.y, dur);
+    wanderTimer = setTimeout(function() {
+      var p = pickPoint();
+      movePetToPx(p.x, p.y, rand(1.2, 2.4));
       scheduleWander();
     }, rand(1200, 3200));
   }
 
-  function snapToSafe() {
-    const p = pickPoint();
-    movePetToPx(p.x, p.y, 0.01);
-  }
-
-  // resize/orientation change -> re-snap
-  window.addEventListener("resize", () => {
-    snapToSafe();
-  });
-
-  // initial
+  function snapToSafe() { var p = pickPoint(); movePetToPx(p.x, p.y, 0.01); }
+  window.addEventListener("resize", snapToSafe);
   snapToSafe();
   scheduleWander();
 
-  // ---------- pet interaction ----------
-  const LINES = ["摸摸～我在！","今天也要加油！","要不要先去相簿？","完成問答會有拼圖喔～"];
-
-  function showBubble(text, ms = 1200) {
-    bubble.textContent = text;
-    bubble.classList.add("show");
-    setTimeout(() => bubble.classList.remove("show"), ms);
+  /* --- pet interaction --- */
+  var LINES = ["摸摸～我在！","今天也要加油！","要不要先去相簿？","完成問答會有拼圖喔～"];
+  function showBubble(text, ms) {
+    bubble.textContent = text; bubble.classList.add("show");
+    setTimeout(function() { bubble.classList.remove("show"); }, ms || 1200);
   }
-
   function spawnHeart() {
-    const h = document.createElement("div");
-    h.className = "heart";
-    h.textContent = "💖";
+    var h = document.createElement("div");
+    h.className = "heart"; h.textContent = "💖";
     h.style.left = rand(35, 65) + "%";
-    pet.appendChild(h);
-    setTimeout(() => h.remove(), 900);
+    pet.appendChild(h); setTimeout(function() { h.remove(); }, 900);
   }
-
-  pet.addEventListener("click", () => {
+  pet.addEventListener("click", function() {
     pet.classList.remove("pet-hop"); void pet.offsetWidth; pet.classList.add("pet-hop");
     spawnHeart(); spawnHeart();
     showBubble(LINES[Math.floor(Math.random() * LINES.length)]);

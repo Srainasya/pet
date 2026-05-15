@@ -132,6 +132,7 @@
         }
 
         st.textContent = "✅ 已確認";
+        showCoinsPopup(j2.coins_earned || 5, j2.coins_total);
         await init(); // 刷新（會重新 role gate + reload）
       });
     });
@@ -168,5 +169,25 @@
   }
 
   init();
+
+  function showCoinsPopup(earned, total) {
+    const el = document.createElement("div");
+    el.style.cssText = `
+      position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.8);
+      background:white; border-radius:20px; padding:28px 36px; z-index:9999;
+      box-shadow:0 8px 32px rgba(0,0,0,0.2); text-align:center;
+      animation: popIn 0.3s ease forwards;
+    `;
+    el.innerHTML = `
+      <div style="font-size:48px;">🪙</div>
+      <div style="font-size:22px; font-weight:800; margin-top:8px;">+${earned} 金幣！</div>
+      ${total !== undefined ? `<div style="color:#888; font-size:14px; margin-top:4px;">目前共 ${total} 枚</div>` : ""}
+    `;
+    const style = document.createElement("style");
+    style.textContent = `@keyframes popIn { from { opacity:0; transform:translate(-50%,-50%) scale(0.7); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }`;
+    document.head.appendChild(style);
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2200);
+  }
 </script>
 {% endblock %}

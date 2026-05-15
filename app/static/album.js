@@ -57,7 +57,7 @@ async function uploadPhoto() {
 
   fileInput.value = "";
   await loadPhotos();
-  statusEl.textContent = "上傳完成";
+  statusEl.textContent = "上傳完成 🎉 +5 coins！";
 }
 
 dateInput.value = todayISO();
